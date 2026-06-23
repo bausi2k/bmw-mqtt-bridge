@@ -92,22 +92,26 @@ mkdir -p data logs
 #### 3\. Create `docker-compose.yml`
 
 ```yaml
-version: '3.8'
-
 services:
   bmw-bridge:
-    # Pulls the latest stable version directly from GitHub Container Registry
-    image: ghcr.io/bausi2k/bmw-python-streaming-mqtt-bridge:latest
+    image: ghcr.io/bausi2k/bmw-mqtt-bridge:latest
+    
     container_name: bmw-bridge
     restart: unless-stopped
+    
+    ports:
+      - "${WEB_PORT:-8999}:${WEB_PORT:-8999}"
+    
     env_file:
       - .env
+    
     volumes:
       - ./bmw_tokens.json:/app/bmw_tokens.json
       - ./vehicle.json:/app/vehicle.json
       - ./logs:/app/logs
       - ./.env:/app/.env
       - ./data:/app/data
+      
     environment:
       - TZ=Europe/Vienna
 ```
@@ -232,22 +236,26 @@ mkdir -p data logs
 #### 3\. `docker-compose.yml` erstellen
 
 ```yaml
-version: '3.8'
-
 services:
   bmw-bridge:
-    # Lädt die neueste stabile Version direkt von der GitHub Container Registry
-    image: ghcr.io/bausi2k/bmw-python-streaming-mqtt-bridge:latest
+    image: ghcr.io/bausi2k/bmw-mqtt-bridge:latest
+    
     container_name: bmw-bridge
     restart: unless-stopped
+    
+    ports:
+      - "${WEB_PORT:-8999}:${WEB_PORT:-8999}"
+    
     env_file:
       - .env
+    
     volumes:
       - ./bmw_tokens.json:/app/bmw_tokens.json
       - ./vehicle.json:/app/vehicle.json
       - ./logs:/app/logs
       - ./.env:/app/.env
       - ./data:/app/data
+      
     environment:
       - TZ=Europe/Vienna
 ```
