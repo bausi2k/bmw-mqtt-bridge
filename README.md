@@ -1,4 +1,4 @@
-# BMW CarData Streaming MQTT Bridge (v1.8.4)
+# BMW CarData Streaming MQTT Bridge (v1.8.8)
 
 [![Buy Me A Coffee](https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png)](https://www.buymeacoffee.com/bausi2k)
 [![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
@@ -15,18 +15,19 @@ This project acts as a robust, long-running bridge service connecting the offici
 It handles the entire OAuth2 authentication lifecycle, including automatic token refreshing, ensuring a maintenance-free operation.
 
 ### ✨ Features
-* **Web-UI Dashboard:** Premium glassmorphic interface built strictly on the **CGDESIGN (v1.0.0)** design language (luxury violet accents, dynamic blur glass effect, consistent corner styling) to view live car telemetry, customize card sizes, edit configuration (.env), and stream live logs.
+* **Web-UI Dashboard:** Premium glassmorphic interface built strictly on the **CGDESIGN (v1.0.0)** design language (classic BMW blue accents, dynamic blur glass effect, consistent corner styling) to view live car telemetry, customize card sizes, edit configuration (.env), and stream live logs.
+* **Light & Dark Mode:** Switch themes at any time via the toggle in the header. Your choice is stored in `localStorage`, and on first load the bridge follows your operating system's preference (`prefers-color-scheme`). Map tiles adapt automatically.
 * **BMW CarData API Integration:** Fetches official vehicle image and basic details dynamically.
 * **Auto-Container Fallback:** Automatically registers a pre-configured telemetry container if BMW reports `"No active container found"`.
 * **Overview Split Map:** Optional Leaflet.js real-time navigation map embedded side-by-side with the car image (2/3 image, 1/3 map) with dynamic GPS and rotated vector heading markers.
-* **Long-Term Route History:** Continuous SQLite logging of location coordinates with an interactive historical path map tab (time-filtered, Dark-Theme).
+* **Long-Term Route History:** Continuous SQLite logging of location coordinates with an interactive historical path map tab (time-filtered, follows the selected theme).
 * **Real-time Streaming:** Connects to BMW's MQTT interface via WebSockets/MQTT.
 * **Robust Authentication:** Implements the OAuth2 Device Code Flow.
 * **Auto-Healing:** Automatically refreshes access tokens before they expire.
 * **Watchdog Reconnect:** Monitors data traffic and automatically reconnects if the stream stalls.
 * **Dockerized:** Available as a pre-built Multi-Arch Image (amd64/arm64) via GitHub Container Registry.
 * **Dynamic Topics:** Flattens complex JSON data into clean MQTT topics (e.g., `home/bmw/live/vehicle/mileage`).
-* **Mulit Car Mode:** [https://github.com/bausi2k/bmw-python-streaming-mqtt-bridge/issues/2#issuecomment-3883328908](https://github.com/bausi2k/bmw-python-streaming-mqtt-bridge/issues/2#issuecomment-3883328908)
+* **Multi Car Mode:** Set `LOCAL_MQTT_APPEND_VIN=true` in your `.env` to append each vehicle's VIN to the base topic (e.g. `home/bmw/live/WBA…/vehicle/mileage`). This keeps several cars apart on a single broker.
 
 ### ⚠️ Acknowledgements & Credits
 
@@ -159,18 +160,19 @@ Dieses Projekt dient als stabile Brücke zwischen der offiziellen **BMW CarData 
 Der Service kümmert sich vollautomatisch um die OAuth2-Authentifizierung und das Erneuern der Tokens, sodass ein wartungsfreier Dauerbetrieb möglich ist.
 
 ### ✨ Funktionen
-* **Web-UI Dashboard:** Edles Glassmorphism-Interface basierend auf der **CGDESIGN (v1.0.0)** Designvorgabe (luxuriöse violette Akzente, dynamischer Glasunschärfe-Effekt, einheitlich abgerundete Ecken) zur Anzeige von Live-Fahrzeugdaten, anpassbaren Cards, Konfigurations-Editor (.env) und Live-Log-Streaming.
+* **Web-UI Dashboard:** Edles Glassmorphism-Interface basierend auf der **CGDESIGN (v1.0.0)** Designvorgabe (klassische BMW-blaue Akzente, dynamischer Glasunschärfe-Effekt, einheitlich abgerundete Ecken) zur Anzeige von Live-Fahrzeugdaten, anpassbaren Cards, Konfigurations-Editor (.env) und Live-Log-Streaming.
+* **Hell- & Dunkelmodus:** Umschaltbar über den Toggle im Header. Die Auswahl bleibt im `localStorage` erhalten, beim ersten Laden wird das Farbschema des Betriebssystems (`prefers-color-scheme`) übernommen. Die Kartenkacheln passen sich automatisch an.
 * **BMW CarData API Integration:** Lädt automatisch das offizielle Fahrzeugbild und die Fahrzeugdetails.
 * **Automatischer Container-Fallback:** Registriert bei einem `"No active container found"` Fehler von BMW automatisch einen Telemetrie-Datencontainer im Nutzer-Account, sodass dieser im Portal nur noch freigegeben werden muss.
 * **Geteilte Übersichtskarte:** Bindet optional eine Leaflet.js-Echtzeitkarte direkt neben dem Fahrzeugbild ein (2/3 Bild, 1/3 Karte) mit dynamischer GPS- und rotierter SVG-Richtungsanzeige.
-* **Langzeit-Routenhistorie:** Protokolliert alle GPS-Koordinaten in einer permanenten SQLite-Tabelle und visualisiert die Fahrtwege in einem interaktiven Dark-Theme-Kartentab ("Standortverlauf") mit Zeitraum-Filter.
+* **Langzeit-Routenhistorie:** Protokolliert alle GPS-Koordinaten in einer permanenten SQLite-Tabelle und visualisiert die Fahrtwege in einem interaktiven Kartentab ("Standortverlauf") mit Zeitraum-Filter, passend zum gewählten Farbschema.
 * **Echtzeit-Streaming:** Verbindet sich via WebSockets/MQTT direkt mit dem BMW-Server.
 * **Robuste Authentifizierung:** Nutzt den offiziellen OAuth2 Device Code Flow.
 * **Selbstheilung:** Erneuert Tokens automatisch im Hintergrund, bevor sie ablaufen.
 * **Watchdog Reconnect:** Überwacht den Datenfluss und startet die Verbindung vollautomatisch neu, falls keine Daten mehr ankommen.
 * **Docker:** Verfügbar als vorgefertigtes Multi-Arch Image (amd64/arm64) über die GitHub Container Registry.
 * **Strukturierte Daten:** Wandelt komplexe JSON-Objekte in saubere MQTT-Topics um (z.B. `home/bmw/live/vehicle/mileage`).
-* **Mulit Car Mode:** [https://github.com/bausi2k/bmw-python-streaming-mqtt-bridge/issues/2#issuecomment-3883328908](https://github.com/bausi2k/bmw-python-streaming-mqtt-bridge/issues/2#issuecomment-3883328908)
+* **Multi Car Mode:** Mit `LOCAL_MQTT_APPEND_VIN=true` in der `.env` wird die VIN des jeweiligen Fahrzeugs an das Basis-Topic angehängt (z.B. `home/bmw/live/WBA…/vehicle/mileage`). So lassen sich mehrere Autos auf einem Broker sauber trennen.
 
 ### ⚠️ Danksagung & Credits
 
