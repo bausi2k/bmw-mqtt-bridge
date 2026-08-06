@@ -1,4 +1,4 @@
-# BMW CarData Streaming MQTT Bridge (v1.8.8)
+# BMW CarData Streaming MQTT Bridge (v1.8.9)
 
 [![Buy Me A Coffee](https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png)](https://www.buymeacoffee.com/bausi2k)
 [![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
@@ -73,6 +73,15 @@ LOCAL_MQTT_APPEND_VIN=false #Optional for multicar Instanze: VIN a (z.B. home/bm
 
 # Logs
 LOG_LEVEL=INFO
+
+# Data retention (optional, since v1.8.9)
+# How long telemetry values are kept in the SQLite database (default: 30 days)
+TELEMETRY_RETENTION_DAYS=30
+# How long the location history is kept. 0 = unlimited (default).
+# Note: the location history is a complete movement profile.
+LOCATION_RETENTION_DAYS=0
+# Hours between two cleanup runs (default: 24)
+MAINTENANCE_INTERVAL_HOURS=24
 ````
 
 **`vehicle.json`** (Your car's VIN)
@@ -218,6 +227,15 @@ LOCAL_MQTT_APPEND_VIN=false #Optional für mehrauto Instanze: VIN a (z.B. home/b
 
 # Logs
 LOG_LEVEL=INFO
+
+# Datenaufbewahrung (optional, seit v1.8.9)
+# Wie lange Telemetriewerte in der SQLite-Datenbank bleiben (Standard: 30 Tage)
+TELEMETRY_RETENTION_DAYS=30
+# Wie lange der Standortverlauf bleibt. 0 = unbegrenzt (Standard).
+# Achtung: Der Standortverlauf ist ein vollständiges Bewegungsprofil.
+LOCATION_RETENTION_DAYS=0
+# Abstand zwischen zwei Bereinigungsläufen in Stunden (Standard: 24)
+MAINTENANCE_INTERVAL_HOURS=24
 ```
 
 **`vehicle.json`** (Deine Fahrgestellnummer/VIN)
