@@ -1,0 +1,31 @@
+# Dieses Repository enthaelt nur Dokumentation und die docker-compose.yml.
+# Da die Bridge aus diesem Ordner heraus betrieben wird, entstehen hier zur
+# Laufzeit Dateien mit Zugangsdaten. Sie duerfen niemals eingecheckt werden.
+
+# Zugangsdaten und Laufzeit-Zustand
+.env
+.env.*
+bmw_tokens*.json
+vehicle.json
+
+# Persistente Daten (der Standortverlauf ist ein vollstaendiges Bewegungsprofil)
+data/
+logs/
+*.db
+*.sqlite
+*.sqlite3
+ui_config.json
+
+# Log-Dateien
+*.log
+bmw_bridge.log
+bmw_bridge.log.*
+
+# IDE- und Editor-spezifische Ordner
+.vscode/
+.idea/
+*.swp
+
+# Betriebssystem-spezifische Dateien
+.DS_Store
+Thumbs.db
