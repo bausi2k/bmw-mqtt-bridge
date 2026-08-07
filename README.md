@@ -1,4 +1,4 @@
-# BMW CarData Streaming MQTT Bridge (v1.8.9)
+# BMW CarData Streaming MQTT Bridge (v1.8.10)
 
 [![Buy Me A Coffee](https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png)](https://www.buymeacoffee.com/bausi2k)
 [![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
@@ -82,6 +82,19 @@ TELEMETRY_RETENTION_DAYS=30
 LOCATION_RETENTION_DAYS=0
 # Hours between two cleanup runs (default: 24)
 MAINTENANCE_INTERVAL_HOURS=24
+
+# Location history (optional, since v1.8.10)
+# Maximum allowed gap in seconds between the timestamps of latitude and
+# longitude (default: 30). Beyond that the point is discarded, which prevents
+# zigzag lines built from an old and a fresh half.
+GPS_MAX_TIMESTAMP_DELTA=30
+
+# Map tiles (optional, since v1.8.10)
+# Tile requests carry your vehicle's position to whichever provider is set
+# here. The default is OpenStreetMap. Point this at your own tile server if
+# you would rather not share that.
+# MAP_TILE_URL=http://192.168.1.50:8080/tiles/{z}/{x}/{y}.png
+# MAP_TILE_ATTRIBUTION=My own tile server
 ````
 
 **`vehicle.json`** (Your car's VIN)
@@ -236,6 +249,20 @@ TELEMETRY_RETENTION_DAYS=30
 LOCATION_RETENTION_DAYS=0
 # Abstand zwischen zwei Bereinigungsläufen in Stunden (Standard: 24)
 MAINTENANCE_INTERVAL_HOURS=24
+
+# Standortverlauf (optional, seit v1.8.10)
+# Maximal erlaubter Abstand in Sekunden zwischen den Zeitstempeln von Breiten-
+# und Längengrad (Standard: 30). Liegen sie weiter auseinander, wird der Punkt
+# verworfen – das verhindert Zickzack-Linien aus einer alten und einer neuen
+# Hälfte.
+GPS_MAX_TIMESTAMP_DELTA=30
+
+# Kartenkacheln (optional, seit v1.8.10)
+# Die Kachel-Anfragen übertragen die Position deines Fahrzeugs an den hier
+# eingetragenen Anbieter. Standard ist OpenStreetMap. Wer das nicht möchte,
+# trägt hier einen eigenen Tile-Server ein.
+# MAP_TILE_URL=http://192.168.1.50:8080/tiles/{z}/{x}/{y}.png
+# MAP_TILE_ATTRIBUTION=Eigener Tile-Server
 ```
 
 **`vehicle.json`** (Deine Fahrgestellnummer/VIN)
