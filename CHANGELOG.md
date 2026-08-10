@@ -10,6 +10,24 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 > Die Historie beginnt mit v1.8.0. Ältere Einträge betreffen überwiegend interne
 > Umbauten ohne Auswirkung auf den Betrieb der Bridge.
 
+## [1.9.1] - 2026-08-10
+### Fixed
+- **Ladeverlauf lieferte `CU-401`:** Die Zeitraum-Parameter `from` und `to` wurden als Unix-Sekunden übergeben. Die Swagger-Spezifikation gibt für beide jedoch `string` mit `format: date-time` an — BMW erwartet ISO 8601. Der Abruf schlug dadurch bei jedem Versuch mit „Ein Übergabewert der Anfrage war ungültig" fehl. Die Zeitstempel werden jetzt als `2026-05-12T11:05:00Z` in UTC gesendet.
+- **`[object Object]` in der Reifenanzeige:** Für Reifen, die keine Daten übertragen, liefert BMW nur das Label ohne Wert (`{"label": "Production date"}`). Der Ausdruck `feld.value || feld` fiel dadurch auf das Objekt selbst zurück, das in der Oberfläche als `[object Object]` erschien — betroffen waren „DOT (Woche/Jahr)" und „Montiert am". Eine neue Hilfsfunktion `pickFieldValue()` liefert in diesem Fall `null`, sodass wie bei den übrigen Feldern ein Strich erscheint.
+- **Irreführende Beschriftung „Profiltiefe":** Darunter stand ein Wert wie „Service in 22.300 km". BMW liefert keine Profiltiefe in Millimetern; das Feld `tyreWear` bezeichnet die Restlaufleistung bis zum nächsten Service. Die Beschriftung lautet jetzt „Service fällig in".
+
+## [1.9.0] - 2026-08-10
+### Added
+- **Neuer Tab „Ladeverlauf":** Zeigt die Ladevorgänge des Fahrzeugs aus der BMW-Schnittstelle `chargingHistory` — Beginn, Ort, geladene Energie, Ladestand von/bis, Dauer und durchschnittliche Ladeleistung. Darüber stehen die Summen für den Zeitraum (standardmäßig 90 Tage). Die Durchschnittsleistung liefert BMW nicht mit; sie wird aus Energie und Dauer berechnet. Auf schmalen Bildschirmen scrollt die Tabelle innerhalb ihres Bereichs, die Seite selbst bleibt ruhig.
+- **Fahrzeugliste im Bereich „Settings & Logs":** Zeigt über `vehicles/mappings` alle dem BMW-Konto zugeordneten Fahrzeuge samt Rolle. Das ist mehr als Zierde: Die CarData-Schnittstelle liefert Daten ausschließlich für Fahrzeuge, bei denen man **Hauptnutzer** (PRIMARY) ist — ein Fehler `CU-104` hat hier häufig seine Ursache, und die Liste macht das auf einen Blick sichtbar.
+- **Neues Modul `lib/charging.py`:** Bereitet die tief verschachtelte BMW-Antwort in eine flache Form auf. Fehlende Angaben — je nach Fahrzeug und Ladevorgang liefert BMW nicht jedes Feld — führen zu leeren Werten statt zu einem Fehler. Fehlt die aufbereitete Ortsangabe, wird auf den öffentlichen Ladepunkt zurückgegriffen.
+
+### Changed
+- **Budgetprüfung deckt neue Endpunkte automatisch ab:** Beide Abrufe sind 24 Stunden zwischengespeichert und kosten damit je einen Abruf pro Tag; der Gesamtverbrauch liegt bei 28 der 50 erlaubten Aufrufe. Ein neuer Test schlägt fehl, sobald ein zwischengespeicherter Endpunkt hinzukommt, ohne in der Budgetrechnung berücksichtigt zu werden.
+
+### Fixed
+- **Pfadschreibweise geklärt:** Der Integration Guide schreibt die fahrzeugbezogenen Endpunkte als `/customer/vehicles/…` (Einzahl), die maßgebliche Swagger-Spezifikation dagegen durchgängig als `/customers/vehicles/…` (Mehrzahl). Die Bridge verwendet die Mehrzahl und liegt damit richtig; die offene Frage aus v1.8.12 ist beantwortet.
+
 ## [1.8.12] - 2026-08-10
 ### Fixed
 - **Fehler der BMW-API werden im Klartext erklärt:** Die Bridge reichte Fehlermeldungen bisher als Rohtext weiter (`BMW API returned error: {"exveErrorId":"CU-429"}`). Das ist besonders tückisch, weil BMW das erschöpfte Tagesbudget als **HTTP 403** ausliefert — also mit demselben Statuszeichen wie eine fehlende Berechtigung. Genau diese Verwechslung führte im Juni dazu, den REST-Telemetrie-Abruf für unbrauchbar zu halten und in v1.8.5 zu entfernen, obwohl lediglich das Tageslimit erreicht war. Das neue Modul `lib/bmw_api_errors.py` übersetzt alle 19 dokumentierten Fehlercodes (`CU-100` bis `CU-503`, Integration Guide Kapitel 3.4) in verständliche Meldungen samt Hinweis auf die Ursache.

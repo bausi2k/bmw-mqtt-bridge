@@ -1,4 +1,4 @@
-# BMW CarData Streaming MQTT Bridge (v1.8.12)
+# BMW CarData Streaming MQTT Bridge (v1.9.1)
 
 [![Buy Me A Coffee](https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png)](https://www.buymeacoffee.com/bausi2k)
 [![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
@@ -21,6 +21,9 @@ It handles the entire OAuth2 authentication lifecycle, including automatic token
 * **Auto-Container Fallback:** Automatically registers a pre-configured telemetry container if BMW reports `"No active container found"`.
 * **Overview Split Map:** Optional Leaflet.js real-time navigation map embedded side-by-side with the car image (2/3 image, 1/3 map) with dynamic GPS and rotated vector heading markers.
 * **Long-Term Route History:** Continuous SQLite logging of location coordinates with an interactive historical path map tab (time-filtered, follows the selected theme).
+* **Charging History:** A dedicated tab lists your charging sessions — start, location, energy drawn, state of charge from/to, duration and average power — with totals for the period. Fetched once a day from BMW's `chargingHistory` endpoint.
+* **Vehicle List:** Shows every vehicle mapped to your BMW account and your role for it. Useful beyond curiosity: CarData only returns data for vehicles where you are the **primary user**, which is a common cause of `CU-104` errors.
+* **API Budget Awareness:** BMW allows 50 API calls per day (reset at 00:00 UTC) and reports the limit as HTTP 403 — easily mistaken for a permission problem. The bridge counts its calls, explains all documented error codes in plain language, and stops asking once the budget is spent.
 * **Real-time Streaming:** Connects to BMW's MQTT interface via WebSockets/MQTT.
 * **Robust Authentication:** Implements the OAuth2 Device Code Flow.
 * **Auto-Healing:** Automatically refreshes access tokens before they expire.
@@ -188,6 +191,9 @@ Der Service kümmert sich vollautomatisch um die OAuth2-Authentifizierung und da
 * **Automatischer Container-Fallback:** Registriert bei einem `"No active container found"` Fehler von BMW automatisch einen Telemetrie-Datencontainer im Nutzer-Account, sodass dieser im Portal nur noch freigegeben werden muss.
 * **Geteilte Übersichtskarte:** Bindet optional eine Leaflet.js-Echtzeitkarte direkt neben dem Fahrzeugbild ein (2/3 Bild, 1/3 Karte) mit dynamischer GPS- und rotierter SVG-Richtungsanzeige.
 * **Langzeit-Routenhistorie:** Protokolliert alle GPS-Koordinaten in einer permanenten SQLite-Tabelle und visualisiert die Fahrtwege in einem interaktiven Kartentab ("Standortverlauf") mit Zeitraum-Filter, passend zum gewählten Farbschema.
+* **Ladeverlauf:** Ein eigener Tab listet die Ladevorgänge – Beginn, Ort, geladene Energie, Ladestand von/bis, Dauer und durchschnittliche Ladeleistung – samt Summen für den Zeitraum. Wird einmal täglich über die BMW-Schnittstelle `chargingHistory` abgerufen.
+* **Fahrzeugliste:** Zeigt alle dem BMW-Konto zugeordneten Fahrzeuge und die eigene Rolle. Praktisch relevant: CarData liefert Daten ausschließlich für Fahrzeuge, bei denen man **Hauptnutzer** ist – eine häufige Ursache für `CU-104`-Fehler.
+* **Bewusster Umgang mit dem API-Limit:** BMW erlaubt 50 Abrufe pro Tag (Reset um 00:00 UTC) und meldet das Limit als HTTP 403 – leicht mit einem Berechtigungsproblem zu verwechseln. Die Bridge zählt ihre Aufrufe mit, erklärt alle dokumentierten Fehlercodes im Klartext und fragt nicht weiter, sobald das Budget aufgebraucht ist.
 * **Echtzeit-Streaming:** Verbindet sich via WebSockets/MQTT direkt mit dem BMW-Server.
 * **Robuste Authentifizierung:** Nutzt den offiziellen OAuth2 Device Code Flow.
 * **Selbstheilung:** Erneuert Tokens automatisch im Hintergrund, bevor sie ablaufen.
