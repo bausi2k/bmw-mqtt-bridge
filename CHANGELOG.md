@@ -10,6 +10,13 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 > Die Historie beginnt mit v1.8.0. Ältere Einträge betreffen überwiegend interne
 > Umbauten ohne Auswirkung auf den Betrieb der Bridge.
 
+## [1.9.2] - 2026-08-10
+### Added
+- **Fehlerantworten von BMW sind jetzt diagnostizierbar:** Bei einem Fehler protokolliert die Bridge zusätzlich die angefragte Adresse und die unveränderte Antwort von BMW. Bisher wurde nur die übersetzte Meldung geschrieben — bei `CU-401` („Übergabewert ungültig") ließ sich dadurch weder erkennen, was gesendet wurde, noch was BMW konkret bemängelte. Beim Tageslimit `CU-429` bleibt es bei der kurzen Meldung, dort ist die Ursache eindeutig.
+
+### Changed
+- **Zeitstempel des Ladeverlaufs mit Millisekunden:** Der Abruf schlug im Produktivbetrieb weiterhin mit `CU-401` fehl, obwohl seit v1.9.1 gültiges ISO 8601 gesendet wurde (`2026-05-12T11:24:07Z`). Die Swagger-Spezifikation nennt lediglich `format: date-time` ohne weitere Angabe. Nachdem Unix-Sekunden (v1.9.0) und sekundengenaue Zeitstempel (v1.9.1) beide abgelehnt wurden, folgt nun die bei Java-Backends übliche Schreibweise mit Millisekunden: `2026-05-12T11:24:07.688Z`. **Das ist eine begründete Annahme, keine gesicherte Erkenntnis** — sollte auch sie fehlschlagen, steht der genaue Grund dank der neuen Protokollierung im Log.
+
 ## [1.9.1] - 2026-08-10
 ### Fixed
 - **Ladeverlauf lieferte `CU-401`:** Die Zeitraum-Parameter `from` und `to` wurden als Unix-Sekunden übergeben. Die Swagger-Spezifikation gibt für beide jedoch `string` mit `format: date-time` an — BMW erwartet ISO 8601. Der Abruf schlug dadurch bei jedem Versuch mit „Ein Übergabewert der Anfrage war ungültig" fehl. Die Zeitstempel werden jetzt als `2026-05-12T11:05:00Z` in UTC gesendet.
