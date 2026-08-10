@@ -10,6 +10,31 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 > Die Historie beginnt mit v1.8.0. Ältere Einträge betreffen überwiegend interne
 > Umbauten ohne Auswirkung auf den Betrieb der Bridge.
 
+## [1.8.12] - 2026-08-10
+### Fixed
+- **Fehler der BMW-API werden im Klartext erklärt:** Die Bridge reichte Fehlermeldungen bisher als Rohtext weiter (`BMW API returned error: {"exveErrorId":"CU-429"}`). Das ist besonders tückisch, weil BMW das erschöpfte Tagesbudget als **HTTP 403** ausliefert — also mit demselben Statuszeichen wie eine fehlende Berechtigung. Genau diese Verwechslung führte im Juni dazu, den REST-Telemetrie-Abruf für unbrauchbar zu halten und in v1.8.5 zu entfernen, obwohl lediglich das Tageslimit erreicht war. Das neue Modul `lib/bmw_api_errors.py` übersetzt alle 19 dokumentierten Fehlercodes (`CU-100` bis `CU-503`, Integration Guide Kapitel 3.4) in verständliche Meldungen samt Hinweis auf die Ursache.
+- **Irreführende Beschriftung im SmartMaintenance-Tab:** Der Aktualisieren-Knopf meldete bei jedem Fehler pauschal „Gesperrt (Auth-Fehler)" — auch beim reinen Tageslimit. Er unterscheidet jetzt zwischen „Tageslimit erreicht" und „Nicht verfügbar", und der genaue Grund erscheint als Hinweis im Tab statt nur in der Browser-Konsole.
+
+### Added
+- **Buchführung über das Tagesbudget:** Ein Zähler protokolliert die verbrauchten API-Aufrufe und setzt sich um 00:00 UTC zurück, passend zur Vorgabe von BMW. Ist das Budget aufgebraucht, antwortet die Bridge sofort mit einer Erklärung, statt einen Aufruf abzusetzen, der ohnehin abgelehnt würde. Meldet BMW ein `CU-429`, obwohl der eigene Zähler niedriger steht — etwa nach einem Neustart der Bridge oder wenn ein zweiter Client dasselbe Konto nutzt — korrigiert sich der Stand selbst. Der aktuelle Verbrauch steht unter `/api/status` im Feld `api_rate_limit` bereit.
+- **43 weitere automatisierte Tests** für Fehlerübersetzung, Budgetzähler und die Verdrahtung beider. Die HTTP-Aufrufe sind durchgehend simuliert; für die Tests geht keine einzige Anfrage an BMW.
+
+## [1.8.11] - 2026-08-07
+### Fixed
+- **Versionsanzeige stimmt wieder:** Die Versionsnummer wurde an drei Stellen gepflegt und war auseinandergelaufen — `main.py` meldete `1.8.1`, der Badge im Dashboard `v1.8.7`, während tatsächlich v1.8.10 lief. Der Badge wird jetzt zur Laufzeit aus `__version__` über `/api/status` bezogen, statt fest im HTML zu stehen. Damit gibt es nur noch eine Quelle, und ein Test stellt sicher, dass `main.py`, CHANGELOG und README dauerhaft übereinstimmen.
+- **Falscher Image-Name in der Entwickler-Dokumentation:** Die `README.md` des Quell-Repositorys verwies an zwei Stellen auf `ghcr.io/bausi2k/bmw-python-streaming-mqtt-bridge:latest`. Unter diesem Namen existiert kein Image — es heißt `bmw-mqtt-bridge`. Ein `docker compose pull` nach dieser Anleitung wäre fehlgeschlagen.
+- **`EXPOSE` im Dockerfile korrigiert:** Die Angabe stand auf Port 8000, die Anwendung lauscht aber auf 8999.
+
+### Added
+- **Gesundheitsprüfung für den Container:** Ein `HEALTHCHECK` fragt minütlich die eigene Status-Schnittstelle ab. Docker erkennt damit eine hängende Bridge, statt den Container weiterhin als gesund zu führen. Umgesetzt mit Bordmitteln von Python, da das schlanke Basis-Image weder `curl` noch `wget` enthält.
+
+### Removed
+- **Toter Code entfernt:** Die Konstanten `AUTH_BASE_URL`, `MQTT_URL` und `MQTT_PORT` sowie der Import von `requests` in `main.py` waren Überbleibsel des in v1.8.5 entfernten REST-Abrufs und wurden nirgends mehr verwendet. Ebenso entfällt die Methode `run_token_monitor()` in `lib/bmw_cardata.py`: Sie wurde nie aufgerufen und duplizierte die Logik des Token-Refresh-Threads. Die verwaiste Datei `example` — eine Kopie eines GitHub-Workflows ohne Dateiendung — ist ebenfalls entfernt.
+- **Kein stilles Beenden mit Erfolgsmeldung mehr:** Drei Stellen nutzten `exit()` statt `sys.exit(1)` und meldeten damit Exit-Code 0. Docker und systemd werteten einen Fehlstart dadurch als sauberes Beenden; bei `Restart=on-failure` unterblieb der Neustart.
+
+### Changed
+- **Hinweis zum `USER` im Container:** Bewusst weiterhin kein fester Nicht-root-Benutzer. Die Bridge schreibt in eingehängte Volumes (`bmw_tokens.json`, `logs/`, `data/`), die auf dem Host einem bestimmten Benutzer gehören; eine feste UID im Image würde dort zu Schreibfehlern führen. Für den vorgesehenen Betrieb im privaten Heimnetz überwiegt das Risiko den Gewinn.
+
 ## [1.8.10] - 2026-08-07
 ### Fixed
 - **Keine verlorenen Messwerte mehr bei gleichzeitigem Zugriff:** Jeder einzelne Telemetriewert öffnete bisher eine eigene SQLite-Verbindung — bei einer BMW-Nachricht mit Unterschlüsseln schnell ein Dutzend — und das ohne WAL-Modus und ohne Timeout. Griff die Web-UI gleichzeitig lesend zu, scheiterte der Schreibvorgang mit `database is locked`, der Messwert war verloren und wurde lediglich protokolliert. Die Datenbank läuft jetzt im WAL-Modus (gleichzeitiges Lesen und Schreiben), Verbindungen haben ein Timeout von 15 Sekunden, und alle Werte einer Nachricht werden über eine einzige Verbindung geschrieben.
