@@ -10,6 +10,11 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 > Die Historie beginnt mit v1.8.0. Ältere Einträge betreffen überwiegend interne
 > Umbauten ohne Auswirkung auf den Betrieb der Bridge.
 
+## [1.9.3] - 2026-08-11
+### Fixed
+- **Ladeverlauf funktioniert:** Der Abruf schlug seit v1.9.0 durchgehend mit `CU-401` fehl. Ursache war weder das Zahlenformat noch die Zeitzone, sondern **der zu große Zeitraum**: BMW lehnt Anfragen über mehr als rund anderthalb Monate ab, ohne das zu dokumentieren oder in der Fehlermeldung zu erwähnen. Am Produktivsystem gemessen: 90 und 60 Tage abgelehnt, 45 und 30 Tage akzeptiert. Der Standardzeitraum liegt jetzt bei 30 Tagen, das Maximum bei 45. Größere Werte weist die Bridge selbst ab, statt einen Abruf zu verbrauchen, der sicher scheitert.
+- **Lesbare Energiewerte:** BMW liefert die geladene Energie in voller Maschinenpräzision — im Livebetrieb etwa `22.979991912841797 kWh`. Die Werte werden jetzt auf zwei Nachkommastellen gerundet, auch in den Summen.
+
 ## [1.9.2] - 2026-08-10
 ### Added
 - **Fehlerantworten von BMW sind jetzt diagnostizierbar:** Bei einem Fehler protokolliert die Bridge zusätzlich die angefragte Adresse und die unveränderte Antwort von BMW. Bisher wurde nur die übersetzte Meldung geschrieben — bei `CU-401` („Übergabewert ungültig") ließ sich dadurch weder erkennen, was gesendet wurde, noch was BMW konkret bemängelte. Beim Tageslimit `CU-429` bleibt es bei der kurzen Meldung, dort ist die Ursache eindeutig.
