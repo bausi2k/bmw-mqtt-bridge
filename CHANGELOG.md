@@ -10,6 +10,33 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 > Die Historie beginnt mit v1.8.0. Ältere Einträge betreffen überwiegend interne
 > Umbauten ohne Auswirkung auf den Betrieb der Bridge.
 
+## [1.10.0] - 2026-08-11
+### Added
+- **Der Standortverlauf behauptet nichts mehr, was er nicht weiß:** Die Karte zog bisher eine einzige durchgehende Linie durch alle Punkte des Zeitraums — auch über Stunden ohne Daten hinweg. Der Verlauf wird jetzt an Meldelücken in Abschnitte getrennt. Wo die gefahrene Strecke unbekannt ist, steht eine **gestrichelte** Verbindung mit einem Hinweis, wie lange die Daten fehlen und wie weit die Luftlinie ist. Unter der Karte steht eine Zeile wie „61 Punkte in 4 Abschnitten · 1 Lücke mit unbekannter Strecke (gestrichelt)".
+- **Neues Modul `lib/track.py`:** Zerlegt den Verlauf und erkennt Fehlpositionen. Die Schwellwerte sind aus 30 Tagen Produktivdaten abgeleitet (10.385 Punkte), nicht geschätzt: 89 % aller Punkte liegen unter zwei Minuten auseinander, die größte Lücke *während* einer Fahrt bei sechs Minuten — getrennt wird daher erst ab zehn Minuten. Die höchste plausible Geschwindigkeit in diesem Zeitraum betrug 137,8 km/h; ab 200 km/h gelten zwei Punkte als nicht zusammengehörig.
+
+### Fixed
+- **Fehlpositionen verzerren die Karte nicht mehr:** Am 25.07. sprang die gemeldete Position für zwölf Sekunden 198 km nach Salzburg und auf den Meter genau zurück — 301.390 km/h für den Rückweg. Das zeichnete nicht nur ein V quer durch Österreich, sondern zog auch den Kartenausschnitt auf 224 km Breite auf, sodass von der eigentlichen Fahrt ein Punkt übrig blieb. Solche kurzen, weit entfernten Ausflüge, hinter denen der Verlauf wieder zusammenschließt, werden nicht mehr gezeichnet. **Gefiltert wird ausschließlich in der Darstellung** — die Datenbank behält jeden aufgezeichneten Punkt, und ältere Aufzeichnungen profitieren sofort.
+- Eine echte Ortsveränderung wird davon nicht berührt: Wer nach einer Datenlücke woanders auftaucht und dort bleibt, ist gefahren. Verworfen wird nur, was hin- und zurückspringt. Am Anfang und Ende eines Zeitraums wird nie verworfen — ohne Nachbarn auf beiden Seiten lässt sich das nicht entscheiden.
+
+### Changed
+- **`GET /api/location-history` liefert ein Objekt statt einer flachen Liste:** `{segments, gaps, dropped, points}`. Wer den Endpunkt direkt anzapft, muss das nachziehen. Die mitgelieferte Oberfläche ist angepasst.
+
+### Note
+Die Aufzeichnung selbst bleibt unverändert. Dabei ist aufgefallen, dass BMW zu **jedem** Datenpunkt einen eigenen, sekundengenauen Zeitstempel mitliefert (`{"timestamp": "2026-08-11T10:49:00Z", "value": 11260, "unit": "W"}`), die Bridge für ihre GPS-Logik aber die Ankunftszeit verwendet. Der vorhandene Schutz `GPS_MAX_TIMESTAMP_DELTA` vergleicht deshalb, wann Breiten- und Längengrad *eingetroffen* sind — gegen eine verspätet gelieferte Altposition hilft das nicht. Das ist ein eigenes Thema und folgt in einem späteren Release.
+
+## [1.9.5] - 2026-08-11
+### Fixed
+- **Erstanmeldung schlug bei jeder Neuinstallation fehl (Issues #1 und #2):** Die Bridge entschied allein anhand der *Existenz* der Token-Datei, ob sie den Anmeldeprozess startet. Die Installationsanleitung wies aber an, die Datei vorab mit `echo "{}" > bmw_tokens.json` anzulegen — sie wird als Volume in den Container gehängt und muss dafür vorhanden sein. Jede Neuinstallation landete dadurch sofort im Service-Betrieb: Der Anmeldedialog erschien nie („the link to the bmw homepage does not show"), und der Start endete mit „Invalid Access Token". Maßgeblich ist jetzt der **Inhalt** der Datei, nicht ihr Vorhandensein — das neue Modul `lib/tokens.py` erkennt fehlende, leere, unlesbare und tokenlose Dateien gleichermaßen als „noch keine Anmeldung".
+- **Anleitung legt keine gefüllte Token-Datei mehr an:** Statt `echo "{}"` steht dort nun `touch bmw_tokens.json`. Die Datei muss weiterhin angelegt werden — fehlt sie, erzeugt Docker beim Einhängen ein *Verzeichnis* an ihrer Stelle. Ein Test wacht darüber, dass die alte Anweisung nicht zurückkehrt.
+
+### Note
+Ein **abgelaufener** Refresh-Token gilt bewusst weiterhin als brauchbar. Würde er als unbrauchbar gelten, spränge die Bridge im Dauerbetrieb in den interaktiven Anmeldedialog — im Container genau das Falsche. Abgelaufene Token bleiben Sache der Anmeldung.
+
+## [1.9.4] - 2026-08-11
+### Changed
+- **Releases entstehen jetzt in beiden Repositories:** Der Veröffentlichungs-Workflow legte ein GitHub-Release bislang nur im öffentlichen Repository an. Die Release-Übersicht des Quell-Repositorys hing dadurch seit Juni auf v1.8.4 fest, obwohl längst v1.9.3 lief. Der Workflow erzeugt das Release nun zusätzlich im Quell-Repository — dort genügt der Standard-Token, er braucht lediglich Schreibrechte auf `contents`. Die dreizehn fehlenden Releases ab v1.8.5 wurden nachgetragen; `v1.8.6` blieb bewusst aus, da dieser Tag aus der in v1.8.7 bereinigten Kollision stammt und keinen eigenen CHANGELOG-Eintrag besitzt.
+
 ## [1.9.3] - 2026-08-11
 ### Fixed
 - **Ladeverlauf funktioniert:** Der Abruf schlug seit v1.9.0 durchgehend mit `CU-401` fehl. Ursache war weder das Zahlenformat noch die Zeitzone, sondern **der zu große Zeitraum**: BMW lehnt Anfragen über mehr als rund anderthalb Monate ab, ohne das zu dokumentieren oder in der Fehlermeldung zu erwähnen. Am Produktivsystem gemessen: 90 und 60 Tage abgelehnt, 45 und 30 Tage akzeptiert. Der Standardzeitraum liegt jetzt bei 30 Tagen, das Maximum bei 45. Größere Werte weist die Bridge selbst ab, statt einen Abruf zu verbrauchen, der sicher scheitert.
