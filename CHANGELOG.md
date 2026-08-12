@@ -10,6 +10,28 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 > Die Historie beginnt mit v1.8.0. Ältere Einträge betreffen überwiegend interne
 > Umbauten ohne Auswirkung auf den Betrieb der Bridge.
 
+## [1.12.0] - 2026-08-12
+### Added
+- **Ladeblöcke werden ausgewertet:** BMW liefert je Ladesitzung eine Liste von Blöcken mit Beginn, Ende und Netzleistung. Bisher wurde davon nur die Anzahl übernommen. Das neue `analyse_blocks()` ermittelt daraus die tatsächliche Ladezeit, die Spitzenleistung und die Leistungskurve.
+- **AC/DC-Unterscheidung:** Die Spezifikation enthält dafür **kein Feld** — die Ladeart wird aus der höchsten Blockleistung abgeleitet. Wechselstrom endet bauartbedingt bei 22 kW, Gleichstrom beginnt bei rund 50; die Schwelle liegt bei 25 kW und damit in einer leeren Lücke. In der Oberfläche ist die Angabe als Ableitung gekennzeichnet, nicht als Angabe von BMW. Die Zusammenfassung zeigt Vorgänge und Energie nach Ladeart getrennt.
+- **Zeitraumfilter (7 / 14 / 30 / 45 Tage):** Die drei kürzeren Zeiträume filtern den bereits geholten Verlauf im Browser und kosten **keinen** zusätzlichen BMW-Abruf. Nur 45 Tage holt einen eigenen, separat zwischengespeicherten Zeitraum. Die Kennzahlen über der Tabelle rechnen dabei mit dem sichtbaren Ausschnitt statt mit dem gesamten Abruf.
+- **Detailzeile je Ladevorgang:** Ein Klick auf eine Zeile zeigt Spitzenleistung, tatsächliche Ladezeit, Anzahl der Ladeblöcke, Kilometerstand und ob vorkonditioniert wurde. Diese Angaben kamen bereits von BMW, wurden aber nie dargestellt.
+
+### Fixed
+- **Die angezeigte Ladeleistung war systematisch zu niedrig:** Sie wurde als Energie geteilt durch die **Gesamtdauer** berechnet — also einschließlich der Zeit, in der das Fahrzeug voll am Kabel stand. Am Produktivsystem gemessen, beides dieselbe 11-kW-Wallbox:
+
+  ```
+  09.08.  12,77 kWh  238 min  ->  3,22 kW  bei 72 Ladeblöcken
+  10.08.  16,46 kWh   86 min  -> 11,48 kW  bei  1 Ladeblock
+  ```
+
+  Die 3,22 kW sind kein Messwert, sondern ein Artefakt der Rechnung. Die Spalte zeigt jetzt die Leistung **während des Ladens**; der Wert über die gesamte Steckzeit steht als Hinweis am Feld. Die Spalte „Dauer" heißt entsprechend „Am Kabel".
+
+### Note
+Ladeverluste lassen sich **nicht** berechnen. Das Feld `energyDecreaseHvbKwh` wäre die batterieseitige Energie, ist aber in allen zehn geprüften Sitzungen leer — BMW liefert es für dieses Fahrzeug nicht.
+
+Die AC/DC-Schwelle ist an keiner Schnellladung geprüft: Alle vorliegenden Sitzungen sind Heimladungen bei rund 11 kW. Die Einordnung folgt der Spezifikation, nicht einer Messung. Die Leistungskurve wird unter `power_curve` mitgeliefert — damit lassen sich die Feldnamen nach dem Ausrollen am Produktivsystem prüfen, ohne einen weiteren Abruf zu verbrauchen.
+
 ## [1.11.1] - 2026-08-12
 ### Fixed
 - **Die GPS-Prüfung der Zeitstempel-Diagnose konnte nie anschlagen:** Sie verglich, ob Breite und Länge **derselben Nachricht** dieselbe Messzeit tragen. Die erste Messung am Produktivsystem zeigte: 93 Nachrichten, 93 Datenpunkte — **BMW schickt jede Metrik einzeln**. Breite und Länge treffen deshalb nie zusammen ein, `pairs` wäre dauerhaft 0 geblieben. Verglichen wird jetzt der zuletzt gesehene Zeitstempel je Komponente, also über Nachrichtengrenzen hinweg. Der Wert `partial_messages` entfällt — er hätte bei jeder GPS-Nachricht hochgezählt und nichts ausgesagt.
