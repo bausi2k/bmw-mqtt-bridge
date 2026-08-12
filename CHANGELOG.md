@@ -10,6 +10,16 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 > Die Historie beginnt mit v1.8.0. Ältere Einträge betreffen überwiegend interne
 > Umbauten ohne Auswirkung auf den Betrieb der Bridge.
 
+## [1.14.0] - 2026-08-12
+### Added
+- **Fahrzeugsteckbrief:** Der Endpunkt `basicData` wird täglich abgerufen und liefert 22 Felder. Angezeigt wurden davon **zwei** — `brand` und `modelName`, zusammengesetzt zu „BMW i5 xDrive40". Unter den Fahrzeugdaten steht jetzt ein aufklappbarer Steckbrief mit Baureihe, Karosserie, Türen, Farbe, Baudatum, Antriebsart, Motorkennung, Lademodi, Navigation, Schiebedach, Head-Unit, Lenkung, SIM-Status, Land und der vollständigen Sonderausstattungsliste. **Ohne einen einzigen zusätzlichen API-Abruf** — die Daten kamen bereits, sie wurden nur verworfen.
+- **Neues Modul `lib/vehicle_profile.py`:** Übersetzt Codes in Klartext (`BEV` → Elektro, `LL` → Linkslenker, `ACTIVE` → aktiv) und formatiert das Baudatum. **Unbekannte Codes werden unverändert durchgereicht** — ein geratenes Klartextwort wäre schlechter als der Rohwert, den man nachschlagen kann. Fehlende Felder erzeugen keine Zeile statt eines Strichs.
+
+### Note
+**Die Nennkapazität ist keine Energieangabe.** `reessNominalCapacityGross` liefert `210.6`; ein i5 xDrive40 hat rund 84 kWh. Der Wert entspricht der Amperestunden-Angabe der Batterie, BMW schreibt keine Einheit dazu, und `hvsMaxEnergyAbsolute` — das Feld, das tatsächlich Energie enthielte — wird für dieses Fahrzeug nicht geliefert. Der Wert erscheint deshalb roh mit einem Hinweis; ein Test stellt sicher, dass im gesamten Steckbrief nirgends „kWh" auftaucht. Die ursprüngliche Absicht, daraus den Ladestand in kWh zu rechnen, ist damit hinfällig.
+
+**Die Spezifikation ist weder vollständig noch verbindlich.** Sieben dort genannte Felder werden nicht geliefert (darunter `vin`, `colourCode` und `hvsMaxEnergyAbsolute`), vier ungenannte sehr wohl — unter anderem `colourDescription` („BLACK SAPPHIRE METALLIC"), das nützlicher ist als der dokumentierte Farbcode, sowie `chargingModes` und `seriesDevt`. Der Steckbrief verträgt beides.
+
 ## [1.13.0] - 2026-08-12
 ### Changed
 - **Breite und Länge werden über BMWs Messzeit gepaart, nicht über die Ankunftszeit.** Das ist die Ursache der rechtwinkeligen Linien, die den Standortverlauf seit jeher begleiten. Der bisherige Schutz `GPS_MAX_TIMESTAMP_DELTA` (30 s) verglich, wann beide Hälften *eintrafen* — ein Längengrad, den BMW vor Minuten gemessen und eben erst geliefert hat, trägt aber die Ankunftszeit „jetzt". Der Abstand ist null, das Paar wird akzeptiert, und aus altem Breiten- und neuem Längengrad entsteht ein Knick.
