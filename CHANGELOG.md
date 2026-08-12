@@ -10,6 +10,18 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 > Die Historie beginnt mit v1.8.0. Ältere Einträge betreffen überwiegend interne
 > Umbauten ohne Auswirkung auf den Betrieb der Bridge.
 
+## [1.11.1] - 2026-08-12
+### Fixed
+- **Die GPS-Prüfung der Zeitstempel-Diagnose konnte nie anschlagen:** Sie verglich, ob Breite und Länge **derselben Nachricht** dieselbe Messzeit tragen. Die erste Messung am Produktivsystem zeigte: 93 Nachrichten, 93 Datenpunkte — **BMW schickt jede Metrik einzeln**. Breite und Länge treffen deshalb nie zusammen ein, `pairs` wäre dauerhaft 0 geblieben. Verglichen wird jetzt der zuletzt gesehene Zeitstempel je Komponente, also über Nachrichtengrenzen hinweg. Der Wert `partial_messages` entfällt — er hätte bei jeder GPS-Nachricht hochgezählt und nichts ausgesagt.
+- Neue Felder unter `bmw_timestamps.gps`: `latitude_messages`, `longitude_messages`, `observations`, `equal_timestamp` sowie `spread_seconds` mit Minimum, Maximum und Median.
+
+### Note
+Der Befund erklärt das Grundproblem schärfer als bisher formuliert. Weil beide Hälften getrennt eintreffen, muss die Bridge sie über Nachrichtengrenzen hinweg zusammensetzen — genau dafür existieren die Flags und die Toleranz im `LocationTracker`, und genau daraus entstanden in frühen Versionen die **rechtwinkeligen Linien** auf der Karte: ein neuer Breitengrad, kombiniert mit einem alten Längengrad, ergibt Bewegung auf nur einer Achse und dann einen Knick.
+
+`GPS_MAX_TIMESTAMP_DELTA=30` begrenzt diesen Fehler bislang nur — bei 130 km/h sind 30 Sekunden über ein Kilometer Versatz auf einer Achse, also genau die Größenordnung dieser Knicke. Tragen beide Hälften denselben BMW-Zeitstempel, ersetzt ein exakter Vergleich die Toleranz, und der Fehler ist konstruktiv ausgeschlossen statt begrenzt. Ob das so ist, misst diese Fassung.
+
+Erste Zahlen aus dem Stand (v1.11.0, 93 Nachrichten): Abdeckung 100 %, kein Datenpunkt ohne Zeitstempel, Verzögerung zwischen Messung und Ankunft 1,57 s bis 5,01 s bei einem Median von 3,39 s.
+
 ## [1.11.0] - 2026-08-12
 ### Added
 - **Zeitstempel-Diagnose:** BMW liefert zu jedem Datenpunkt einen eigenen, sekundengenauen Zeitstempel (`{"timestamp": "2026-08-11T10:49:00Z", "value": 11260, "unit": "W"}`). Die Bridge verwirft ihn und stempelt jeden Wert mit der **Ankunftszeit**. Das hat Folgen: Der Schutz `GPS_MAX_TIMESTAMP_DELTA` vergleicht, wann Breite und Länge *eingetroffen* sind, nicht wann sie gemessen wurden — gegen eine verspätet gelieferte Altposition hilft er deshalb nicht, denn die kommt als stimmiges Paar an. Genau daraus entstand der Ausreißer vom 25.07., den v1.10.0 nur in der Anzeige abfängt.
