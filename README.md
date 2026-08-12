@@ -1,4 +1,4 @@
-# BMW CarData Streaming MQTT Bridge (v1.12.0)
+# BMW CarData Streaming MQTT Bridge (v1.13.0)
 
 [![Buy Me A Coffee](https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png)](https://www.buymeacoffee.com/bausi2k)
 [![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
@@ -85,10 +85,13 @@ LOCATION_RETENTION_DAYS=0
 # Hours between two cleanup runs (default: 24)
 MAINTENANCE_INTERVAL_HOURS=24
 
-# Location history (optional, since v1.8.10)
-# Maximum allowed gap in seconds between the timestamps of latitude and
-# longitude (default: 30). Beyond that the point is discarded, which prevents
-# zigzag lines built from an old and a fresh half.
+# Location history (optional)
+# Since v1.13.0 latitude and longitude are paired by BMW's own measurement
+# time, so both halves must come from the same reading. 0 means exact.
+# Raise it only if the log shows valid pairs being discarded.
+GPS_MAX_MEASUREMENT_DELTA=0
+# Fallback for the rare case that BMW ships no measurement time: maximum gap
+# in seconds between the ARRIVAL of latitude and longitude (default: 30).
 GPS_MAX_TIMESTAMP_DELTA=30
 
 # Map tiles (optional, since v1.8.10)
@@ -254,11 +257,14 @@ LOCATION_RETENTION_DAYS=0
 # Abstand zwischen zwei Bereinigungsläufen in Stunden (Standard: 24)
 MAINTENANCE_INTERVAL_HOURS=24
 
-# Standortverlauf (optional, seit v1.8.10)
-# Maximal erlaubter Abstand in Sekunden zwischen den Zeitstempeln von Breiten-
-# und Längengrad (Standard: 30). Liegen sie weiter auseinander, wird der Punkt
-# verworfen – das verhindert Zickzack-Linien aus einer alten und einer neuen
-# Hälfte.
+# Standortverlauf (optional)
+# Seit v1.13.0 werden Breiten- und Längengrad über BMWs eigene Messzeit
+# gepaart – beide Hälften müssen also aus derselben Messung stammen. 0 heißt
+# exakt. Nur erhöhen, wenn das Log zeigt, dass gültige Paare verworfen werden.
+GPS_MAX_MEASUREMENT_DELTA=0
+# Rückfallebene für den seltenen Fall, dass BMW keine Messzeit mitliefert:
+# maximaler Abstand in Sekunden zwischen dem EINTREFFEN von Breiten- und
+# Längengrad (Standard: 30).
 GPS_MAX_TIMESTAMP_DELTA=30
 
 # Kartenkacheln (optional, seit v1.8.10)
