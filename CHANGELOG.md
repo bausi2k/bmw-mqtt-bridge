@@ -10,6 +10,29 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 > Die Historie beginnt mit v1.8.0. Ältere Einträge betreffen überwiegend interne
 > Umbauten ohne Auswirkung auf den Betrieb der Bridge.
 
+## [1.13.0] - 2026-08-12
+### Changed
+- **Breite und Länge werden über BMWs Messzeit gepaart, nicht über die Ankunftszeit.** Das ist die Ursache der rechtwinkeligen Linien, die den Standortverlauf seit jeher begleiten. Der bisherige Schutz `GPS_MAX_TIMESTAMP_DELTA` (30 s) verglich, wann beide Hälften *eintrafen* — ein Längengrad, den BMW vor Minuten gemessen und eben erst geliefert hat, trägt aber die Ankunftszeit „jetzt". Der Abstand ist null, das Paar wird akzeptiert, und aus altem Breiten- und neuem Längengrad entsteht ein Knick.
+- **Gespeichert wird die Messzeit.** `location_history.timestamp` enthielt bisher den Zeitpunkt, zu dem die Nachricht ankam — im Median rund 3 Sekunden nach der Messung. Künftig steht dort, wann das Fahrzeug tatsächlich an diesem Ort war. **Ältere Zeilen behalten die Ankunftszeit**, die Spalte ist also gemischt; der Unterschied liegt im Bereich weniger Sekunden.
+- **Das Frischefenster entfällt**, wo eine Messzeit vorliegt. Seine Aufgabe war, dieselbe Position nicht wiederholt zu speichern — das erledigt jetzt der direkte Vergleich der Messzeit.
+- **Neue Einstellung `GPS_MAX_MEASUREMENT_DELTA`** (Standard `0`, also exakt). Aus den Livedaten ist bekannt, dass 60,4 % der Paarungen exakt übereinstimmen; wie sich die übrigen verteilen, ließ sich aus Minimum, Maximum und Median nicht ablesen. Der Wert ist deshalb einstellbar statt geraten, und verworfene Paare werden mit ihrem Abstand protokolliert.
+- **Rückfallebene:** Fehlt die Messzeit, gilt wieder die Prüfung auf Ankunftszeiten samt Frischefenster. Über 11.078 Nachrichten lag die Abdeckung bei 100 % — das ist eine Beobachtung, keine Zusage von BMW.
+
+### Note
+Der Beleg stammt aus der Fahrt vom 12.08.2026, drei aufeinanderfolgende Punkte:
+
+```
+07:03:31   48.425757  15.776218
+07:03:49   48.425757  15.774451    dNord =    0,0 m   dOst = -130,6 m
+07:03:50   48.420586  15.774451    dNord = -575,6 m   dOst =    0,0 m
+```
+
+Der Breitengrad um 07:03:49 ist zeichengenau derselbe wie 18 Sekunden zuvor, danach der Längengrad. Ergebnis: zwei achsenreine Schenkel, der zweite mit 576 Metern in einer Sekunde.
+
+Die Sonde aus v1.11.0 hat das Ausmaß beziffert: **60,4 % der Paarungen** trugen identische Messzeiten, der größte Versatz lag bei **4.331 Sekunden** — 72 Minuten. Zwei von fünf Paarungen kombinierten also Hälften aus verschiedenen Messungen.
+
+Eine Simulation mit diesem Anteil (400 Messungen, keine Messung, sondern eine Veranschaulichung) zeigt den Unterschied: Die alte Logik zeichnet 438 Punkte auf, davon 263 falsch gepaart — mehr Punkte als es Messungen gab, weil Nachzügler Scheinpunkte erzeugen. Die neue liefert 376 Punkte, davon **keinen falsch gepaarten**. Die Zahl der Punkte sinkt also leicht; eine frühere Vermutung, die Ausbeute würde steigen, hat sich nicht bestätigt.
+
 ## [1.12.0] - 2026-08-12
 ### Added
 - **Ladeblöcke werden ausgewertet:** BMW liefert je Ladesitzung eine Liste von Blöcken mit Beginn, Ende und Netzleistung. Bisher wurde davon nur die Anzahl übernommen. Das neue `analyse_blocks()` ermittelt daraus die tatsächliche Ladezeit, die Spitzenleistung und die Leistungskurve.
