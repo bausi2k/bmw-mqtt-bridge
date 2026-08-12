@@ -1,4 +1,4 @@
-# BMW CarData Streaming MQTT Bridge (v1.10.2)
+# BMW CarData Streaming MQTT Bridge (v1.11.0)
 
 [![Buy Me A Coffee](https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png)](https://www.buymeacoffee.com/bausi2k)
 [![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
@@ -18,7 +18,6 @@ It handles the entire OAuth2 authentication lifecycle, including automatic token
 * **Web-UI Dashboard:** Premium glassmorphic interface built strictly on the **CGDESIGN (v1.0.0)** design language (classic BMW blue accents, dynamic blur glass effect, consistent corner styling) to view live car telemetry, customize card sizes, edit configuration (.env), and stream live logs.
 * **Light & Dark Mode:** Switch themes at any time via the toggle in the header. Your choice is stored in `localStorage`, and on first load the bridge follows your operating system's preference (`prefers-color-scheme`). Map tiles adapt automatically.
 * **BMW CarData API Integration:** Fetches official vehicle image and basic details dynamically.
-* **Auto-Container Fallback:** Automatically registers a pre-configured telemetry container if BMW reports `"No active container found"`.
 * **Overview Split Map:** Optional Leaflet.js real-time navigation map embedded side-by-side with the car image (2/3 image, 1/3 map) with dynamic GPS and rotated vector heading markers.
 * **Long-Term Route History:** Continuous SQLite logging of location coordinates with an interactive historical path map tab (time-filtered, follows the selected theme). The track is split into segments wherever the car stopped reporting: a dashed line marks a stretch where the route is unknown, rather than pretending the car drove straight through. Positions no car could have reached are left out of the drawing — the database keeps every recorded point.
 * **Charging History:** A dedicated tab lists your charging sessions — start, location, energy drawn, state of charge from/to, duration and average power — with totals for the period. Fetched once a day from BMW's `chargingHistory` endpoint.
@@ -188,7 +187,6 @@ Der Service kümmert sich vollautomatisch um die OAuth2-Authentifizierung und da
 * **Web-UI Dashboard:** Edles Glassmorphism-Interface basierend auf der **CGDESIGN (v1.0.0)** Designvorgabe (klassische BMW-blaue Akzente, dynamischer Glasunschärfe-Effekt, einheitlich abgerundete Ecken) zur Anzeige von Live-Fahrzeugdaten, anpassbaren Cards, Konfigurations-Editor (.env) und Live-Log-Streaming.
 * **Hell- & Dunkelmodus:** Umschaltbar über den Toggle im Header. Die Auswahl bleibt im `localStorage` erhalten, beim ersten Laden wird das Farbschema des Betriebssystems (`prefers-color-scheme`) übernommen. Die Kartenkacheln passen sich automatisch an.
 * **BMW CarData API Integration:** Lädt automatisch das offizielle Fahrzeugbild und die Fahrzeugdetails.
-* **Automatischer Container-Fallback:** Registriert bei einem `"No active container found"` Fehler von BMW automatisch einen Telemetrie-Datencontainer im Nutzer-Account, sodass dieser im Portal nur noch freigegeben werden muss.
 * **Geteilte Übersichtskarte:** Bindet optional eine Leaflet.js-Echtzeitkarte direkt neben dem Fahrzeugbild ein (2/3 Bild, 1/3 Karte) mit dynamischer GPS- und rotierter SVG-Richtungsanzeige.
 * **Langzeit-Routenhistorie:** Protokolliert alle GPS-Koordinaten in einer permanenten SQLite-Tabelle und visualisiert die Fahrtwege in einem interaktiven Kartentab ("Standortverlauf") mit Zeitraum-Filter, passend zum gewählten Farbschema. Der Verlauf wird überall dort in Abschnitte getrennt, wo das Fahrzeug nichts mehr gemeldet hat: Eine gestrichelte Linie zeigt an, dass die gefahrene Strecke unbekannt ist, statt eine Gerade zu erfinden. Positionen, die kein Auto erreicht haben kann, werden nicht gezeichnet — in der Datenbank bleibt jeder aufgezeichnete Punkt erhalten.
 * **Ladeverlauf:** Ein eigener Tab listet die Ladevorgänge – Beginn, Ort, geladene Energie, Ladestand von/bis, Dauer und durchschnittliche Ladeleistung – samt Summen für den Zeitraum. Wird einmal täglich über die BMW-Schnittstelle `chargingHistory` abgerufen.

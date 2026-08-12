@@ -10,6 +10,20 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 > Die Historie beginnt mit v1.8.0. Ältere Einträge betreffen überwiegend interne
 > Umbauten ohne Auswirkung auf den Betrieb der Bridge.
 
+## [1.11.0] - 2026-08-12
+### Added
+- **Zeitstempel-Diagnose:** BMW liefert zu jedem Datenpunkt einen eigenen, sekundengenauen Zeitstempel (`{"timestamp": "2026-08-11T10:49:00Z", "value": 11260, "unit": "W"}`). Die Bridge verwirft ihn und stempelt jeden Wert mit der **Ankunftszeit**. Das hat Folgen: Der Schutz `GPS_MAX_TIMESTAMP_DELTA` vergleicht, wann Breite und Länge *eingetroffen* sind, nicht wann sie gemessen wurden — gegen eine verspätet gelieferte Altposition hilft er deshalb nicht, denn die kommt als stimmiges Paar an. Genau daraus entstand der Ausreißer vom 25.07., den v1.10.0 nur in der Anzeige abfängt.
+- **Neues Modul `lib/timestamp_probe.py`:** Zählt im Normalbetrieb mit, wie verlässlich BMWs Angabe ist — wie viele Datenpunkte einen Zeitstempel tragen, wie weit Messzeit und Ankunftszeit auseinanderliegen (Minimum, Maximum, Median), ob Breite und Länge derselben Nachricht dieselbe Messzeit tragen, und wie oft BMW unvollständige Teilpakete schickt. Die Zahlen stehen unter `/api/status` im Feld `bmw_timestamps`.
+- **Warnung bei fehlendem Zeitstempel:** Der einzige Fall, der die geplante Umstellung kippen würde, landet als `WARNING` im Log — je Messwert genau einmal, damit ein Dauerfehler das Logfile nicht füllt.
+
+### Fixed
+- **Beworbene Funktion entfernt, die es seit v1.8.5 nicht mehr gibt:** In der Funktionsliste beider READMEs stand ein „Automatischer Container-Fallback", der bei `No active container found` selbsttätig einen Telemetrie-Container anlegt. Im Code existiert davon nichts — der REST-Telemetrie-Abruf samt Container-Verwaltung wurde in v1.8.5 entfernt, die Werbung dafür blieb stehen. Nutzer lasen also von etwas, das die Bridge nicht kann.
+
+### Note
+**An der Aufzeichnung ändert sich nichts.** Dieses Release misst nur. Der eigentliche Umbau auf BMWs Messzeit folgt erst, wenn belastbare Zahlen vorliegen — dann lässt sich die 30-Sekunden-Toleranz aus v1.8.3 durch einen exakten Vergleich ersetzen. Tests halten fest, dass `location_tracker.py` unberührt bleibt und das Diagnosemodul weder schreibt noch Netzverkehr erzeugt.
+
+Die Diagnose ist als Werkzeug auf Zeit gedacht. Ist die Frage beantwortet, kann sie wieder verschwinden.
+
 ## [1.10.2] - 2026-08-12
 ### Added
 - **Dependabot ist aktiv:** Bislang war im Quell-Repository weder eine Sicherheitswarnung noch ein Versionsupdate eingeschaltet — bei neun fest gepinnten Paketen in `requirements.txt` hieß das, dass eine Version so lange stehen bleibt, bis sie jemandem auffällt. Eingeschaltet wurden die Sicherheitswarnungen samt automatischer Sicherheits-PRs in den Repository-Einstellungen sowie die regelmäßigen Versionsupdates über die neue `.github/dependabot.yml`.
