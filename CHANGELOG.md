@@ -10,6 +10,15 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 > Die Historie beginnt mit v1.8.0. Ältere Einträge betreffen überwiegend interne
 > Umbauten ohne Auswirkung auf den Betrieb der Bridge.
 
+## [1.10.1] - 2026-08-11
+### Fixed
+- **Geschwindigkeitsschwelle des Standortverlaufs von 200 auf 350 km/h angehoben:** Der Wert war an der falschen Größe gemessen — an dem, was dieses eine Fahrzeug in 30 Tagen gefahren ist, statt an dem, was ein Auto überhaupt kann. Der schnellste Serien-BMW liegt bei rund 305 km/h. Eine schnelle Autobahnfahrt wäre dadurch in Schnipsel zerlegt worden, und zwar ausgerechnet bei dem Fahrer, der sie fährt.
+- **Die Korrektur kostet nichts:** Zwischen der schnellsten echten Fahrt (176,9 km/h) und dem langsamsten Messfehler (376,7 km/h) liegt in 30 Tagen Produktivdaten kein einziger Wert. 200, 250, 300 und 350 km/h ergeben exakt dieselben fünf Trennungen; gegen die Echtdaten geprüft bleibt das Ergebnis Zahl für Zahl gleich (3 verworfene Punkte, 308 Abschnitte, 307 Lücken). Erst ab 400 km/h würde ein echter Ausreißer durchrutschen. Die Schwelle liegt jetzt mitten im leeren Band und muss keinen Grenzfall entscheiden.
+- **Zahlendreher in der Herleitung:** In v1.10.0 stand als höchste plausible Geschwindigkeit 137,8 km/h. Der Wert stammte aus einer nach *Distanz* sortierten Liste, nicht nach Geschwindigkeit. Richtig sind 176,9 km/h. Korrigiert in `lib/track.py` und in den Tests.
+
+### Note
+Die fehlende Millisekunden-Auflösung von BMWs Zeitstempeln wurde als möglicher Hinderungsgrund für den geplanten Umbau der Aufzeichnung geprüft und verworfen: Von 10.384 Punktpaaren liegen 40 unter einer Sekunde, davon haben sich drei überhaupt bewegt — um höchstens 4,4 Meter. In 30 Tagen enthalten fünf Sekunden mehr als einen Punkt. Siehe `ROADMAP.md`.
+
 ## [1.10.0] - 2026-08-11
 ### Added
 - **Der Standortverlauf behauptet nichts mehr, was er nicht weiß:** Die Karte zog bisher eine einzige durchgehende Linie durch alle Punkte des Zeitraums — auch über Stunden ohne Daten hinweg. Der Verlauf wird jetzt an Meldelücken in Abschnitte getrennt. Wo die gefahrene Strecke unbekannt ist, steht eine **gestrichelte** Verbindung mit einem Hinweis, wie lange die Daten fehlen und wie weit die Luftlinie ist. Unter der Karte steht eine Zeile wie „61 Punkte in 4 Abschnitten · 1 Lücke mit unbekannter Strecke (gestrichelt)".
