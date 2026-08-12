@@ -10,6 +10,17 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 > Die Historie beginnt mit v1.8.0. Ältere Einträge betreffen überwiegend interne
 > Umbauten ohne Auswirkung auf den Betrieb der Bridge.
 
+## [1.10.2] - 2026-08-12
+### Added
+- **Dependabot ist aktiv:** Bislang war im Quell-Repository weder eine Sicherheitswarnung noch ein Versionsupdate eingeschaltet — bei neun fest gepinnten Paketen in `requirements.txt` hieß das, dass eine Version so lange stehen bleibt, bis sie jemandem auffällt. Eingeschaltet wurden die Sicherheitswarnungen samt automatischer Sicherheits-PRs in den Repository-Einstellungen sowie die regelmäßigen Versionsupdates über die neue `.github/dependabot.yml`.
+- **Drei überwachte Ökosysteme:** `pip` (requirements.txt), `github-actions` (acht Aktionen in zwei Workflows) und `docker` (Basisimage). Alle wöchentlich, montags früh. Patch- und Minor-Updates kommen gebündelt in je einem Pull Request — neun einzelne pro Woche wären für ein Privatprojekt unbrauchbar. Major-Updates bleiben einzeln, weil sie eine bewusste Entscheidung verlangen.
+- **Neue Tests `tests/test_dependabot_config.py`:** Sie prüfen nicht die YAML-Syntax, sondern die Verbindung zwischen Konfiguration und Wirklichkeit. Wer künftig ein neues Manifest hinzufügt und Dependabot dabei vergisst, bekommt einen roten Test statt jahrelang unbemerkt veraltender Abhängigkeiten — dasselbe Muster wie in `test_api_budget.py`. Zusätzlich abgesichert ist, dass die CI bei Pull Requests die **vollständige** Testsuite ausführt und der Veröffentlichungs-Workflow nicht auf Pull Requests reagiert.
+
+### Note
+Sprünge des Python-Basisimages (3.11 → 3.12 und höher) sind bewusst ausgenommen. Ein solcher Pull Request würde nur die Zeile im `Dockerfile` ändern, während `ci.yml` `python-version` weiterhin fest auf `'3.11'` hält — die Tests liefen gegen die alte Laufzeit, und die Abweichung fiele erst im Betrieb auf. Ein Wechsel der Python-Version gehört in einen eigenen Branch mit beiden Änderungen.
+
+Im öffentlichen Distributions-Repository bleibt Dependabot aus: Dort liegen nur README, LICENSE, `docker-compose.yml` und `example.env` — kein Manifest mit versionierten Abhängigkeiten, das sich überwachen ließe.
+
 ## [1.10.1] - 2026-08-11
 ### Fixed
 - **Geschwindigkeitsschwelle des Standortverlaufs von 200 auf 350 km/h angehoben:** Der Wert war an der falschen Größe gemessen — an dem, was dieses eine Fahrzeug in 30 Tagen gefahren ist, statt an dem, was ein Auto überhaupt kann. Der schnellste Serien-BMW liegt bei rund 305 km/h. Eine schnelle Autobahnfahrt wäre dadurch in Schnipsel zerlegt worden, und zwar ausgerechnet bei dem Fahrer, der sie fährt.
