@@ -10,6 +10,21 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 > Die Historie beginnt mit v1.8.0. Ältere Einträge betreffen überwiegend interne
 > Umbauten ohne Auswirkung auf den Betrieb der Bridge.
 
+## [1.14.2] - 2026-08-13
+### Fixed
+- **Der Datenstrom wurde alle 15 Minuten neu aufgebaut.** Am Produktivsystem beobachtet: sechs Erneuerungen des Zugriffstokens in 75 Minuten, jede mit einem Neustart der MQTT-Verbindung — bei einem Token, der **eine Stunde** gültig ist. Kommt während der Trennung etwas von BMW, ist es verloren.
+
+  Ursache war nicht das Prüfintervall, sondern die Reihenfolge in `authenticate()`: Die Methode ruft `_load_tokens()` auf, und das **ersetzt** `self.tokens` durch den Dateiinhalt. Gespeichert werden aber nur `refresh_token`, `gcid` und `scope` — der gültige `id_token` war danach weg, und jede Ablaufprüfung lief ins Leere. Der Refresh wurde dadurch unvermeidlich. Die Prüfung steht jetzt **vor** dem Laden; die richtige Reihenfolge stand mit `_ensure_valid_tokens()` schon im selben Modul.
+
+- **Die Sicherheitsspanne war kleiner als das Prüfintervall.** `_is_token_expired()` rechnete mit fünf Minuten Vorlauf, der Refresh-Thread läuft alle fünfzehn. Ein Token konnte dadurch bis zu zehn Minuten abgelaufen sein, bevor überhaupt jemand nachsah — während die MQTT-Verbindung ihn weiterverwendete. Die neue Konstante `TOKEN_REFRESH_MARGIN_MINUTES` steht auf 20 Minuten und damit über dem Intervall; ein Test hält beide Werte aneinander fest, damit niemand am einen dreht, ohne das andere mitzuziehen.
+
+### Note
+Die Spanne ist bewusst **relativ zum Ablaufzeitpunkt** gewählt, nicht zur Lebensdauer. `expires_at` liefert BMW mit; ein fest verdrahtetes „nach 59 Minuten erneuern" wäre falsch, sobald BMW die Gültigkeit kürzer ansetzt.
+
+Über acht Stunden simuliert, bei 15-Minuten-Takt und einstündiger Gültigkeit: **33 Erneuerungen vorher, 11 nachher** — 32 gegenüber 10 Neustarts des Datenstroms. In beiden Varianten war der Token zu keinem Prüfzeitpunkt abgelaufen; der neue Takt liegt bei 45 Minuten und lässt damit 15 Minuten Reserve.
+
+Der voreingestellte Vorlauf von `_is_token_expired()` bleibt bei fünf Minuten — er gilt für Prüfungen unmittelbar vor der Verwendung, und deren Verhalten ändert sich nicht.
+
 ## [1.14.1] - 2026-08-13
 ### Fixed
 - **Derselbe verworfene GPS-Fall stand vielfach im Protokoll.** Stimmen die Messzeiten von Breiten- und Längengrad nicht überein, kehrt die Prüfung zurück, *bevor* die Flags zurückgesetzt werden — absichtlich, denn eine später eintreffende passende Hälfte muss sich noch mit der wartenden ersten verbinden können. Folge davon ist, dass **jede** weitere BMW-Nachricht dieselbe Prüfung erneut auslöst, auch eine über Reifendruck oder Ladeleistung. Am Containerlog vom 13.08.2026 gemessen: **236 Zeilen für 13 tatsächliche Vorfälle**, einer davon 48-mal innerhalb einer Sekunde. Jeder Fall wird jetzt nur noch einmal protokolliert; unterschieden wird nach dem Paar der Messzeiten, nicht nach deren Abstand.
