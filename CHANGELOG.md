@@ -10,6 +10,38 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 > Die Historie beginnt mit v1.8.0. Ältere Einträge betreffen überwiegend interne
 > Umbauten ohne Auswirkung auf den Betrieb der Bridge.
 
+## [1.17.0] - 2026-08-13
+### Added
+- **Ladevorgänge ohne geladene Energie lassen sich ausblenden.** BMW führt im Verlauf auch Sitzungen, bei denen nichts im Akku ankam — teils mit 0 kWh, teils ganz ohne Wert. In der Tabelle sieht man den Unterschied nicht, und beide verwässern die Kennzahlen. Der Umschalter „0 kWh ausblenden" sitzt neben der Zeitraumwahl, filtert rein lokal und kostet damit **keinen BMW-Abruf**. Der Zustand bleibt im Browser erhalten.
+
+### Changed
+- **Der Umschalter verschiebt auch die Zusammenfassung** — sie rechnet aus den sichtbaren Sitzungen. Anzahl, Gesamtdauer und die AC/DC-Zähler sinken, die Gesamtenergie bleibt gleich (Nullen tragen nichts bei), und der **Durchschnitt steigt**: aus „Ø je Einsteckvorgang" wird „Ø je echter Ladung". Gemessen an vier Beispielsitzungen: 54 kWh bleiben 54 kWh, der Schnitt geht von 18 auf 27 kWh.
+- **Der Zustand von Umschaltern hängt jetzt an `aria-pressed`.** Beim Ansehen im Browser gefunden: die Hervorhebung für gedrückte Knöpfe galt ausschließlich innerhalb von `.charging-range`. Der neue Knopf saß daneben und sah eingeschaltet genauso aus wie ausgeschaltet — der Filter hätte unbemerkt laufen können. Ein Test hält die Regel jetzt fest.
+
+### Note
+**Voreingestellt ist der Filter aus.** Stilles Weglassen hat dieses Projekt schon einmal teuer bezahlt — bis v1.15.0 endete der Ladeverlauf kommentarlos bei zehn Vorgängen. Ist der Filter an, steht die Zahl der ausgeblendeten Vorgänge über der Tabelle, neben dem Seitenhinweis.
+
+Als leer gilt auch ein negativer Wert: Rückspeisung gehört nicht in eine Ladebilanz. 0,01 kWh dagegen bleiben stehen — wenig ist nicht nichts.
+
+Die Verhaltenstests führen den echten Code aus `app.js` in Node aus, statt Zeichenketten zu vergleichen. Fehlt Node, werden sie übersprungen; auf `ubuntu-latest`, wo die CI läuft, ist es vorhanden.
+
+**Nicht geklärt:** wodurch diese Einträge entstehen — abgebrochene Ladung, reine Vorklimatisierung oder Stecker ohne Freigabe. Der Hinweis zählt sie deshalb nur, statt sie zu deuten.
+
+## [1.16.0] - 2026-08-13
+### Added
+- **Die nutzbare Energie der Batterie steht im Steckbrief.** Der Datenstrom liefert sie längst als `batteryManagement.maxEnergy` — bisher landete der Wert ungenutzt in der Datenbank. Gegenprobe an echten Daten, Ladestand mal Restkapazität gegen „kWh bis voll": 35 % bei 76 → 49 (gerechnet 49,4), 50 % bei 77 → 38 (38,5), 49 % bei 77 → 39 (39,3). Dreimal deckungsgleich. Der Wert kostet **keinen einzigen API-Abruf**.
+
+### Changed
+- **Die Nennkapazität trägt jetzt ihre Einheit: `210,6 Ah`.** In v1.14.0 stand sie roh da, weil BMW keine Einheit mitliefert. Sie ist inzwischen belegt: 210,6 Ah × 400 V = 84,24 kWh, und ein i5 xDrive40 hat rund 84 kWh brutto. Rückwärts gerechnet ergibt das 400,3 V — die Nennspannung des Gen5-Akkus. Zwei unabhängige Größen treffen sich auf ein Zehntel Volt.
+- **Der Steckbrief wird bei jedem Abruf neu gebaut.** Gepuffert wird nur noch BMWs Rohantwort. Andernfalls wäre der Energiewert im tagesalten Zwischenspeicher eingefroren; er ändert sich stündlich.
+
+### Note
+**Aus den Amperestunden wird trotzdem keine Energie gerechnet.** Dazu bräuchte es die Nennspannung, und die liefert BMW in keinem Feld — im gesamten Projekt existiert keine. Sie fest auf 400 V zu setzen wäre bequem und falsch: die Neue Klasse fährt mit 800 V. Diese Bridge läuft auf fremden Fahrzeugen, dort zeigte dieselbe Formel die halbe Kapazität an, ohne dass es jemandem auffiele. Nötig ist die Rechnung ohnehin nicht — der gemessene Wert ist von der Systemspannung unabhängig.
+
+Zwei Dinge, die **nicht** belegt sind: Der Wert liegt unter der Werksangabe von 81,2 kWh netto — ob das Alterung ist oder BMW etwas anderes meint, ist offen. Und er ist nicht konstant: innerhalb von neun Stunden wanderte er von 76 auf 77, vermutlich temperaturabhängig. Er erscheint deshalb als „Nutzbare Energie", nicht als Kapazität, und der Hinweis in der Oberfläche sagt das auch.
+
+Schickt BMW zum Messwert eine eigene Einheit mit, hat sie Vorrang vor unserer Annahme `kWh`. Der Test, der „kWh" im Steckbrief verbietet, gilt unverändert für alles, was **nicht** aus dem Datenstrom stammt.
+
 ## [1.15.1] - 2026-08-13
 ### Changed
 - **Die Log-Ansicht zeigt den jüngsten Eintrag oben.** Bisher lief sie zeitlich aufsteigend und sprang beim Aktualisieren ans Ende. Wer ins Log sieht, will aber wissen, was *gerade* passiert ist — nicht, was tausend Zeilen vorher war. Entsprechend gilt jetzt der obere Rand als mitlaufend: Steht die Ansicht oben, bleibt sie oben und zeigt die frischen Zeilen.
