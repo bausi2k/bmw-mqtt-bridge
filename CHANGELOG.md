@@ -10,6 +10,16 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 > Die Historie beginnt mit v1.8.0. Ältere Einträge betreffen überwiegend interne
 > Umbauten ohne Auswirkung auf den Betrieb der Bridge.
 
+## [1.14.1] - 2026-08-13
+### Fixed
+- **Derselbe verworfene GPS-Fall stand vielfach im Protokoll.** Stimmen die Messzeiten von Breiten- und Längengrad nicht überein, kehrt die Prüfung zurück, *bevor* die Flags zurückgesetzt werden — absichtlich, denn eine später eintreffende passende Hälfte muss sich noch mit der wartenden ersten verbinden können. Folge davon ist, dass **jede** weitere BMW-Nachricht dieselbe Prüfung erneut auslöst, auch eine über Reifendruck oder Ladeleistung. Am Containerlog vom 13.08.2026 gemessen: **236 Zeilen für 13 tatsächliche Vorfälle**, einer davon 48-mal innerhalb einer Sekunde. Jeder Fall wird jetzt nur noch einmal protokolliert; unterschieden wird nach dem Paar der Messzeiten, nicht nach deren Abstand.
+- An der Auswertung selbst ändert sich nichts — die Prüfung läuft weiter bei jeder Nachricht, nur die wiederholte Zeile entfällt.
+
+### Note
+Die Auswertung des Logs hat gleich zweierlei gezeigt. Erstens die Verteilung der abweichenden Messzeiten, die bisher fehlte — alle 13 Vorfälle einer 42-Minuten-Fahrt: 2, 4, 8, 13, 30, 78, 80, 84, 92, 105, 116, 181 und 181 Sekunden. Acht davon liegen über einer Minute, **im Sekundenbereich gibt es keine Häufung**. `GPS_MAX_MEASUREMENT_DELTA = 0` bleibt damit richtig; eine Toleranz von 10 Sekunden würde 3 der 13 Fälle zusätzlich zulassen, und zwar ohne Gewinn.
+
+Zweitens: Ohne diese Korrektur wären die Zahlen bei jeder künftigen Auswertung um den Faktor 18 verzerrt gewesen. Genau das ist bei der ersten Auswertung dieses Logs passiert.
+
 ## [1.14.0] - 2026-08-12
 ### Added
 - **Fahrzeugsteckbrief:** Der Endpunkt `basicData` wird täglich abgerufen und liefert 22 Felder. Angezeigt wurden davon **zwei** — `brand` und `modelName`, zusammengesetzt zu „BMW i5 xDrive40". Unter den Fahrzeugdaten steht jetzt ein aufklappbarer Steckbrief mit Baureihe, Karosserie, Türen, Farbe, Baudatum, Antriebsart, Motorkennung, Lademodi, Navigation, Schiebedach, Head-Unit, Lenkung, SIM-Status, Land und der vollständigen Sonderausstattungsliste. **Ohne einen einzigen zusätzlichen API-Abruf** — die Daten kamen bereits, sie wurden nur verworfen.

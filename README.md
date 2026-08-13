@@ -1,4 +1,4 @@
-# BMW CarData Streaming MQTT Bridge (v1.14.0)
+# BMW CarData Streaming MQTT Bridge (v1.14.1)
 
 [![Buy Me A Coffee](https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png)](https://www.buymeacoffee.com/bausi2k)
 [![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
