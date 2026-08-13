@@ -10,6 +10,28 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 > Die Historie beginnt mit v1.8.0. Ältere Einträge betreffen überwiegend interne
 > Umbauten ohne Auswirkung auf den Betrieb der Bridge.
 
+## [1.15.1] - 2026-08-13
+### Changed
+- **Die Log-Ansicht zeigt den jüngsten Eintrag oben.** Bisher lief sie zeitlich aufsteigend und sprang beim Aktualisieren ans Ende. Wer ins Log sieht, will aber wissen, was *gerade* passiert ist — nicht, was tausend Zeilen vorher war. Entsprechend gilt jetzt der obere Rand als mitlaufend: Steht die Ansicht oben, bleibt sie oben und zeigt die frischen Zeilen.
+
+### Note
+Die Schnittstelle `/api/logs` selbst bleibt **zeitlich aufsteigend**. Sie ist ein Datenstrom, keine Ansicht, und Auswertungen außerhalb der Oberfläche verlassen sich auf diese Reihenfolge. Umgedreht wird ausschließlich beim Zeichnen; ein Test hält beides auseinander.
+
+## [1.15.0] - 2026-08-13
+### Fixed
+- **Der Ladeverlauf zeigte immer nur zehn Vorgänge — egal welcher Zeitraum gewählt war.** BMW liefert den Verlauf **seitenweise**, zehn Sitzungen je Seite, und nennt im Feld `next_token` die Fortsetzung. Seit v1.9.0 holte die Bridge bewusst nur die erste Seite, um das Tagesbudget zu schonen. Diese Entscheidung war verteidigbar — sie zu verschweigen nicht: `has_more` stand seit jeher in der Antwort und wurde nirgends angezeigt. Am Produktivsystem gemessen: 45 Tage angefragt, 5,4 Tage geliefert, kein Hinweis.
+
+  Die Bridge blättert jetzt bis zu zehn Seiten durch (100 Ladevorgänge). Reicht das einmal nicht, steht es über der Tabelle, statt still abgeschnitten zu werden.
+
+### Changed
+- **Die Oberfläche holt immer den größten Zeitraum und filtert lokal.** 7, 14, 30 und 45 Tage kommen dadurch aus einem einzigen Abruf. Ein zweiter Zeitraum hätte alle Seiten erneut gekostet.
+- **Rückfallebene, falls BMW den Zeitraum ablehnt:** Die Grenze ist undokumentiert (gemessen: 45 Tage angenommen, 60 abgelehnt). Schlägt der Abruf über 45 Tage fehl, versucht die Oberfläche einmalig 30 Tage, statt leer zu bleiben.
+
+### Note
+Das Tagesbudget steigt dadurch von 28 auf **37 der 50 erlaubten Abrufe** (Grenze mit Sicherheitsreserve: 40). Der Ladeverlauf kostet künftig bis zu zehn statt einem Abruf — einmal täglich, danach greift der Zwischenspeicher. Der mit Abstand größte Posten bleiben die Reifen mit 24 Abrufen (TTL eine Stunde, gerechnet für einen dauerhaft geöffneten Tab).
+
+Der Budgettest kennt jetzt den Unterschied zwischen „ein Abruf" und „ein Abruf mit mehreren Seiten". Ohne das hätte er 28 statt 37 gemeldet und die Überschreitung erst im Betrieb sichtbar werden lassen. Für einen weiteren Endpunkt — etwa die geplanten Ladeorte — wird es damit eng; dort wäre zuerst die TTL der Reifen zu überdenken.
+
 ## [1.14.2] - 2026-08-13
 ### Fixed
 - **Der Datenstrom wurde alle 15 Minuten neu aufgebaut.** Am Produktivsystem beobachtet: sechs Erneuerungen des Zugriffstokens in 75 Minuten, jede mit einem Neustart der MQTT-Verbindung — bei einem Token, der **eine Stunde** gültig ist. Kommt während der Trennung etwas von BMW, ist es verloren.
