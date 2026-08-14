@@ -10,6 +10,50 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 > Die Historie beginnt mit v1.8.0. Ältere Einträge betreffen überwiegend interne
 > Umbauten ohne Auswirkung auf den Betrieb der Bridge.
 
+## [1.18.0] - 2026-08-14
+### Added
+- **Der Zwischenspeicher übersteht einen Neustart.** Bis v1.17.2 war er ein nacktes Dict im Arbeitsspeicher — nach jedem Deploy leer, und der erste Aufruf der Oberfläche kaufte alles noch einmal. Am Produktivsystem gemessen (13.08.2026, 14:41:16 bis 14:41:32): **13 Anfragen in 16 Sekunden**, davon elf Seiten Ladeverlauf; die letzte lief in ein CU-429, das Tagesbudget war aufgebraucht. An einem Entwicklungstag mit drei, vier Deploys ist ein Budget von 50 allein damit weg. Die Antworten liegen jetzt in derselben SQLite wie Telemetrie und Standortverlauf, also im Volume `./data`.
+- **Gespeichert wird der Zeitpunkt des Abrufs, nicht der des Ladens.** Sonst hätte ein Neustart die Aufbewahrungsdauer verlängert statt sie zu wahren — aus 24 Stunden würden bei täglichem Neustart beliebig viele. Ein abgelaufener Eintrag wird nach dem Start ganz normal nachgeholt.
+- **Das Fahrzeugbild überlebt als Bytes**, base64-kodiert in der JSON-Ablage. Es ist die einzige Antwort, die kein JSON ist.
+
+### Changed
+- Der Wartungs-Thread räumt jetzt auch abgelaufene API-Antworten weg (älter als 48 Stunden, doppelt so lang wie die längste Aufbewahrungsdauer). Ohne das wüchse die Tabelle mit jedem je abgefragten Zeitraum.
+
+### Note
+**Verhaltensänderung:** Bisher war „Container neu starten" der stille Weg, frische Daten zu erzwingen. Das funktioniert nicht mehr — sonst wäre die ganze Übung sinnlos. Der ausdrückliche Weg bleiben die Aktualisieren-Knöpfe; sie überschreiben die abgelegte Zeile.
+
+Eine Korrektur an der ursprünglichen Planung: Ein gesondertes Löschen der gespeicherten Zeile bei `bypass_cache` ist **nicht** nötig. Ein erfolgreicher Abruf überschreibt sie ohnehin, und scheitert er, ist der alte Wert das Beste, was noch da ist.
+
+Die Persistenz ist eine Bequemlichkeit, keine Notwendigkeit: Fällt die Datenbank aus, arbeitet der Zwischenspeicher wie vorher im Arbeitsspeicher weiter und übersteht dann eben keinen Neustart. Ein Abruf scheitert daran nicht.
+
+Die Falle aus v1.16.0 bleibt geschlossen und wird jetzt schärfer geprüft: Gespeichert wird ausschließlich BMWs Rohantwort. Die nutzbare Energie kommt bei jeder Auslieferung frisch aus dem Datenstrom — läge sie im Zwischenspeicher, wäre sie einen Tag lang eingefroren, und mit der Persistenz überstünde dieser eingefrorene Wert sogar den Neustart.
+
+## [1.17.2] - 2026-08-14
+### Changed
+- **Der Token wird alle 5 Minuten geprüft, erneuert wird bei 10 Restminuten** (vorher 15 Minuten Takt, 20 Minuten Vorlauf). Der Datenstrom startet damit alle 50 statt alle 45 Minuten neu — 29 statt 32 Mal am Tag. Eine Prüfung ohne fälligen Refresh ist ein Datumsvergleich im Speicher: kein HTTP, kein Tagesbudget. Der enge Takt kostet also nichts.
+- **Ein gescheiterter Refresh bekommt jetzt eine zweite Gelegenheit.** Das ist der eigentliche Gewinn. Die alte Einstellung erneuerte bei 15 Restminuten und sah 15 Minuten später wieder nach — da war der Token bereits tot. Es gab genau **einen** Versuch; scheiterte er, war die Verbindung weg. Die Bedingung im Test zählt deshalb jetzt Durchläufe statt Minuten und verlangt zwei.
+- **Prüfintervall und Vorlauf stehen als Konstanten nebeneinander** in `lib/bmw_cardata.py`. Zwei Zahlen an zwei Orten — die eine in `main.py`, die andere in der Bibliothek — waren die Ursache der alten Fehleinstellung.
+
+### Note
+Über die Kadenz ist nicht viel mehr zu holen: Solange jede Erneuerung den MQTT-Client neu startet, liegt die Untergrenze bei 24 Neustarts am Tag, weil der Token eine Stunde lebt. Gemessen wurden 32, jetzt sind es 29, das Minimum wären 24.
+
+Der eigentliche Hebel wäre, bei einem Refresh **gar nicht** neu zu verbinden. BMW authentifiziert die MQTT-Sitzung beim CONNECT, und in 16 Stunden Protokoll (13./14.08.2026) hat BMW von sich aus kein einziges Mal getrennt. Ob die Sitzung den Tokenablauf übersteht, lässt sich daraus aber **nicht** ableiten — wir starten immer vorher neu. Das wäre ein eigener Versuch.
+
+## [1.17.1] - 2026-08-14
+### Fixed
+- **Ein Abruf des Ladeverlaufs kostete bis zu 28 BMW-Anfragen statt zehn.** Am Produktivsystem gemessen (14.08.2026, 06:51:39 bis 06:51:53): Der Inhaber holte den Ladeverlauf **einmal**, BMW sah 28 Anfragen. Vom Tagesbudget von 50 waren damit vor sieben Uhr morgens 29 verbraucht. Zwei Ursachen haben sich multipliziert:
+  - **Nichts hielt einen zweiten Durchlauf auf.** Der Zwischenspeicher wird erst geschrieben, wenn die letzte Seite da ist — während der sieben Sekunden, die das dauert, verfehlte ihn jede weitere Anfrage und blätterte selbst los. Im Browser dasselbe: `chargingLoaded` wurde am *Ende* von `fetchChargingHistory` gesetzt und griff damit genau dann nicht, wenn es gebraucht wurde.
+  - **Ein `CU-500` wurde als Zeitraum-Problem gedeutet.** Der Rückfall von 45 auf 30 Tage ist dafür da, dass BMW zu große Zeiträume ablehnt (HTTP 400, CU-401). Geprüft wurde aber nur `!res.ok`, also fiel auch ein vorübergehender Serverfehler darunter. Beide Durchläufe liefen in je einen 500er — aus zwei Durchläufen wurden vier.
+
+### Changed
+- **Gleichzeitige Anfragen an denselben Endpunkt teilen sich einen Abruf.** Wer als Zweiter kommt, wartet auf das Ergebnis des Ersten, statt selbst bei BMW anzufragen. Das gilt für alle fünf Endpunkte — Reifen, Stammdaten, Bild, Ladeverlauf und Fahrzeugliste —, denn der Fehler steckte in keinem von ihnen, sondern im Muster.
+- **Auch zweimal „Aktualisieren" kostet nur einen Durchlauf.** `bypass_cache` hebt die Sperre nicht auf; wer wartet, bekommt aber ausschließlich, was *während* seiner Wartezeit entstanden ist. Ein alter Eintrag zählt beim ausdrücklichen Auffrischen nicht.
+
+### Note
+Die Sperre bringt eine Verhaltensänderung mit: Eine zweite Anfrage wartet jetzt, statt parallel zu laufen. Hängt BMW, kann das bei zehn Seiten à 20 Sekunden Zeitüberschreitung dauern — vorher hätte der Zweite eine eigene, ebenso langsame Antwort bekommen, nur eben für den doppelten Preis.
+
+Der Prüfstand für diese Tests hatte im ersten Entwurf selbst einen Fehler: Zwei gleichzeitige Durchläufe teilten sich einen Seitenzähler, wodurch der wichtigste Test grün aussah, obwohl beide blätterten. Die Seitenzahl hängt jetzt am `nextToken`.
+
 ## [1.17.0] - 2026-08-13
 ### Added
 - **Ladevorgänge ohne geladene Energie lassen sich ausblenden.** BMW führt im Verlauf auch Sitzungen, bei denen nichts im Akku ankam — teils mit 0 kWh, teils ganz ohne Wert. In der Tabelle sieht man den Unterschied nicht, und beide verwässern die Kennzahlen. Der Umschalter „0 kWh ausblenden" sitzt neben der Zeitraumwahl, filtert rein lokal und kostet damit **keinen BMW-Abruf**. Der Zustand bleibt im Browser erhalten.
