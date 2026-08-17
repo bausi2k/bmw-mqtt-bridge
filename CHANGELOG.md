@@ -10,6 +10,141 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 > Die Historie beginnt mit v1.8.0. Ältere Einträge betreffen überwiegend interne
 > Umbauten ohne Auswirkung auf den Betrieb der Bridge.
 
+## [1.24.0] - 2026-08-17
+### Fixed
+- **Die Tabelle zeigte nur die Straße, obwohl die volle Adresse vorlag.** Gemeldet an „Marktplatz 2", während im Export „Marktplatz 2, 1234 Musterort" steht. In der Detailzeile standen Ortsname und Adresse zusätzlich hintereinander — zweimal fast dasselbe. An 205 Vorgängen aus vier Monatsexporten gemessen, gibt es drei Muster, und nur **6 von 205** fallen unter das einfachste:
+
+  | Name | Adresse | Anzeige |
+  |---|---|---|
+  | `Marktplatz 2` | `Marktplatz 2, 1234 Musterort` | Adresse |
+  | `Zuhause - Ahornweg 5` | `Ahornweg 5, 1234 Musterort` | `Zuhause - Ahornweg 5, 1234 Musterort` |
+  | `HPC/DC Stromanbieter GmbH` | `Gewerbering 1234 Musterort` | beide, getrennt durch `·` |
+
+  Beim zweiten Muster steckt die Straße im Namen, aber der Ort fehlt — er wird **angehängt statt ersetzt**, denn „Zuhause" ist die nützlichere Beschriftung. Beim dritten sind Betreiber und Anschrift verschiedene Dinge und bleiben beide stehen.
+
+### Added
+- **Importierte Ladevorgänge haben jetzt eine Ladeleistung.** Energiemenge und Ladedauer stehen im Export, die Spalte blieb aber leer.
+- **Ein `*` kennzeichnet Werte aus dem Export**, statt „aus dem App-Export (gerundet)" hinter jeder Zeile. Die Erklärung steht einmal als Legende unter der Tabelle — und nur dann, wenn tatsächlich gekennzeichnete Werte in der Ansicht stehen.
+
+### Note
+**Die abgeleitete Leistung ist nicht die Ladeleistung.** Sie ist Energie geteilt durch die *gesamte* Steckzeit — genau die Größe, die das Projekt in v1.11.1 bewusst verlassen hat, weil sie zusammenbricht, sobald das Auto voll am Kabel steht: gemessen 12,77 kWh in 238 Minuten, also 3,22 kW an einer 11-kW-Wallbox. Für importierte Vorgänge gibt es nichts Besseres, der Export kennt keine Ladeblöcke. Deshalb wird der Wert gezeigt, aber gekennzeichnet.
+
+Er fließt **weder in die AC/DC-Einordnung** — 3,22 kW würden eine DC-Ladung zu AC machen — **noch in den Leistungsregler**, der weiterhin die Spitzenleistung filtert. Zwei verschiedene Größen in einem Filter wären eine stille Lüge. Ladungen ohne Spitzenleistung bleiben dort sichtbar wie seit v1.22.0.
+
+## [1.23.0] - 2026-08-17
+### Fixed
+- **Der Watchdog schlug jede Nacht Fehlalarm.** Am Produktivsystem gemessen (16./17.08.2026, 24 Stunden): **fünf Warnungen**, keine davon mit einem Fehler dahinter. Er kann „Auto schläft" nicht von „Stream tot" unterscheiden — bei einem geparkten Fahrzeug bringt der Reconnect naturgemäß nichts, der Zeitstempel bleibt alt, und eine Stunde später steht dasselbe wieder da. Die Abstände wachsen jetzt: **3, 6, 12, 24 Stunden**, zurückgesetzt bei der ersten Nachricht. Nur der erste Alarm einer Stille ist eine Warnung, die Wiederholungen sind Hinweise. Aus fünf Warnungen pro Nacht wird eine.
+- **Der Trenn-Handler feuerte doppelt.** Am 17.08. um 08:05:33 zwei „Unexpected disconnection"-Warnungen und zwei Reconnect-Versuche in derselben Millisekunde. Ursache: `disconnect_mqtt()` rief `loop_stop()` **vor** `disconnect()` — ohne laufenden Netzwerk-Loop geht das DISCONNECT-Paket nicht mehr raus, der alte Client blieb halb offen und meldete sich später neben dem neuen. Bei 28 Neuaufbauten am Tag. Die Reihenfolge ist umgedreht, und die Referenz wird gelöscht.
+
+### Changed
+- **Die Zeile je empfangener Nachricht steht auf DEBUG statt INFO.** Sie machte 32.929 Zeilen und 5,2 MB am Tag aus — ein Sechstel des Logs, ohne etwas zu erklären, das eine Zählung nicht genauso gut sagt. An ihre Stelle tritt alle fünf Minuten eine Zusammenfassung: rund 288 Zeilen am Tag statt 32.929. Ganz ohne Lebenszeichen auf INFO wirkte die Brücke sonst tot.
+- **Die GPS-Prüfzeile lief bei jeder Nachricht mit**, auch bei Reifendruck und Türstatus: 32.783 Zeilen am Tag, davon 21.571 mit „lat_updated=False, lon_updated=False" — also „hier war gar kein Standort dabei". Sie meldet sich jetzt nur noch, wenn die Nachricht überhaupt einen Standort trug.
+
+### Note
+**Der größte Hebel braucht keine Zeile Code.** So verteilten sich die 32 MB eines Tages:
+
+| Posten | Zeilen | MB | Anteil |
+|---|---|---|---|
+| DEBUG: MQTT-Weitergabe | 110.376 | 20,9 | 65 % |
+| DEBUG: GPS-Prüfung | 32.783 | 5,4 | 17 % |
+| INFO: Nachricht empfangen | 32.929 | 5,2 | 16 % |
+| Rest | 1.492 | 0,6 | 2 % |
+
+`LOG_LEVEL=INFO` streicht davon 82 % — von 32 MB auf 5,7 MB am Tag. Der Hinweis steht jetzt in `example.env` und im README.
+
+**Korrektur zu v1.17.2:** Dort stand, BMW habe „kein einziges Mal von sich aus getrennt", und darauf war die Überlegung gebaut, bei einem Token-Refresh gar nicht neu zu verbinden. Das Protokoll widerlegt die Prämisse: Um 08:05:33 trennte BMW mit „Keep alive timeout". Die Neuverbindung gelang in 1,1 Sekunden — und zwar **mit dem vorhandenen Token** (54 Minuten Restlaufzeit). Ein Reconnect braucht also keinen frischen Token; ob eine *bestehende* Sitzung den Tokenablauf übersteht, bleibt offen. Der Gedanke ist weiter möglich, die damalige Begründung trägt ihn nicht.
+
+Den Watchdog abzuschalten wäre falsch: Der Zombie-Fall — Verbindung steht, Broker hält uns für angemeldet, nichts fließt — ist real, und dass der Strom wirklich abreißen kann, zeigt derselbe Tag.
+
+## [1.22.0] - 2026-08-17
+### Added
+- **Freier Zeitraum mit Datum und Uhrzeit** statt der vier festen Knöpfe. Mit dem Archiv aus v1.19.0 und dem Import aus v1.21.0 liegen 200 und mehr Ladevorgänge über Monate vor — vier Stufen reichten dafür nicht mehr. Vorbelegt sind die letzten 30 Tage, damit der Alltagsfall keine zwei Eingaben kostet.
+- **Filter nach Ladeart:** Alle, nur AC, nur DC, oder ohne Angabe. Letzteres ist eine eigene Auswahl, weil „BMW sagt nichts darüber" etwas anderes ist als „weder AC noch DC".
+- **Zwei Regler für die Ladeleistung**, Mindest- und Höchstwert der Spitzenleistung. Sie können sich nicht überkreuzen — sonst zeigte die Tabelle nichts an, und niemand sähe warum.
+- **Ein Knopf setzt alle Filter zurück.** Bei fünf Bedienelementen muss ein Weg zurück sichtbar sein.
+
+### Changed
+- Die Zeitraum-Knöpfe (7/14/30/45 Tage) sind **entfallen** — ersetzt, nicht ergänzt. Die zuletzt gewählte Filterwahl bleibt im Browser erhalten.
+
+### Note
+**Kein Filter kostet einen BMW-Abruf.** Gefiltert wird lokal aus dem Archiv. Reicht der gewählte Zeitraum weiter zurück, als der Server zuletzt geliefert hat, wird nachgeladen — auch das liest nur die Datenbank.
+
+**Ladungen ohne Messwert bleiben sichtbar, auch bei gesetztem Mindestwert.** Eine Sitzung ohne Ladeblöcke hat keine Spitzenleistung; sie auszublenden, sobald jemand eine Untergrenze setzt, wäre ein zweiter 0-kWh-Filter — einer, den niemand sieht und niemand ausschalten kann. Ausblenden bleibt Sache des vorhandenen Umschalters. Im Browser gemessen: „ab 50 kW" zeigt bei vier Beispielsitzungen drei — die eine schnelle Ladung plus die zwei ohne Messung.
+
+Gefiltert wird die **Spitzenleistung**, nicht die tatsächliche Ladeleistung. Sie ist auch die Grundlage der AC/DC-Einordnung, beide Filter sprechen damit über dieselbe Größe.
+
+Wie seit v1.17.0 rechnet die Zusammenfassung aus den **sichtbaren** Sitzungen. Ein Filter verschiebt also Anzahl, Dauer, Durchschnitt und die AC/DC-Zähler mit.
+
+Geprüft bei 1280 und 375 Pixel; mobil stehen zwei Felder je Zeile, die beiden Regler jeweils allein.
+
+## [1.21.0] - 2026-08-17
+### Added
+- **Der xlsx-Export der BMW-App lässt sich einlesen.** Knopf „📥 Export einlesen" im Ladeverlauf, danach ein Bericht: wie viele Vorgänge gelesen wurden, wie viele vorhandene Messungen ergänzt wurden und wie viele neu sind. **Kostet keinen BMW-Abruf.**
+- **Fünf Felder, die die CarData-API nicht kennt:** Ladekosten, Stromtarif, Ladestandort (ein sprechender Name statt Koordinaten), Adresse und Label. Sie stehen in der Detailzeile; der Standortname ersetzt in der Tabelle die Ortsangabe, wenn er vorliegt.
+- **Das Archiv lässt sich rückwärts über BMWs 45-Tage-Grenze hinaus aufbauen.** Alles Ältere liefert die API nie wieder — Monatsexporte sind der einzige Weg dorthin. An vier Exporten des Projektinhabers geprüft (April bis Juli 2026): **205 Ladevorgänge, 3181 kWh, 711,59 €**, alle gelesen.
+- Gelesen wird mit der Standardbibliothek. Eine xlsx ist ein ZIP mit XML darin; `openpyxl` wäre eine weitere Abhängigkeit für eine Funktion, die gelegentlich eine Datei liest. Die Datei kommt als roher Anfragekörper statt als Formular-Upload — das spart `python-multipart`.
+
+### Note
+**Ein Importwert überschreibt nie einen API-Wert.** BMW nennt die Zahlen des Exports in der Fußnote der Datei selbst „Prognosen, die von dem tatsächlichen Ladevorgang … abweichen können": Der Export liefert `~ 12 kWh`, die API `22.979991912841797` — dieselbe Ladung. Energie, Ladezustand und Zeiten bleiben, wie die API sie gemessen hat; aus dem Export kommt nur dazu, was dort fehlt.
+
+Vorgänge, die es **nur** im Export gibt, tragen das Merkmal `estimated`, und die Oberfläche sagt, wenn gerundete Werte in einer Summe stecken. Sie bekommen **keine AC/DC-Einordnung**: Ohne Ladeblöcke gibt es keine Spitzenleistung, und der Export sagt über die Ladeart nichts. Eine erfundene Einordnung wäre schlimmer als gar keine.
+
+**Zwei Ladungen können in derselben Minute beginnen.** In den vier Exporten zweimal vorgekommen — je ein Fehlversuch mit 0 kWh und die echte Ladung danach, beide mit derselben Startzeit, weil der Export nur Minutengenauigkeit hat. Der Schlüssel enthält deshalb auch die Endzeit, und beim Zusammenführen wird jede API-Messung höchstens einmal vergeben. Ohne beides wäre je eine der zwei Ladungen verschwunden.
+
+`< 1 kWh` bekommt bewusst keine Zahl — der Wert liegt irgendwo zwischen null und eins, und eine erfundene Zahl in einer Summe ist schlechter als eine Lücke. Der Originaltext bleibt daneben stehen.
+
+**Die Spalte „Entladene Strommenge" ist in allen vier Monaten leer** — 205 Vorgänge, kein einziger Wert. Damit ist die offene ROADMAP-Frage zu `energyDischargedKwh` beantwortet: BMW füllt das Feld weder in der API noch im Export.
+
+## [1.20.0] - 2026-08-14
+### Fixed
+- **Der Hell-Modus legte 40 % Schwarz über die Detaildaten.** Gemeldet als „das Grau der Kacheln ist viel zu intensiv", im Browser nachgemessen: Die Seite ist `rgb(244,245,248)`, die Abschnittsfläche stand fest auf `rgba(18,18,18,0.4)` — macht **`rgb(154,154,156)`**. Die Kacheln darauf sind zu 75 % weiß und durchscheinend und wirkten dadurch grau (`rgb(230,230,230)`). **Der Fehler saß nicht in der Kachel, sondern unter ihr** — eine Korrektur an der Kachelfarbe hätte nichts gebracht. Jetzt hebt sich die Fläche im Hell-Modus nach oben ab: rund `rgb(250,250,252)`, eine Andeutung statt eines Kastens.
+- **Zwölf weitere fest verdrahtete Farben laufen jetzt über Variablen.** Sie stammten alle aus der Fassung für den Dunkel-Modus und waren der Grund, dass der Hell-Modus stellenweise wie ein halb umgeschalteter Dunkel-Modus aussah. Ausgenommen bleibt der Schleier hinter Dialogen — der ist in beiden Modi dunkel. Ein Test verbietet neue feste Flächenfarben.
+
+### Added
+- **Die Kacheln lassen sich sortieren:** eigene Reihenfolge, A–Z oder zuletzt aktualisiert. Die Auswahl sitzt in der Abschnittskopfzeile und bleibt im Browser erhalten.
+
+### Note
+Sortiert wird nur die **Anzeige**. Die per Drag and Drop gewählte Reihenfolge liegt in `uiConfig` auf dem Server und bleibt unangetastet — sie ist weiterhin die Voreinstellung.
+
+Der heikle Teil daran: `data-index` am Widget ist der Platz in `section.cards` und steuert Löschen und Bearbeiten. Wanderte er beim Sortieren mit der Anzeige, löschte ein Klick auf den Papierkorb die falsche Kachel. Die Sortierung reicht deshalb den ursprünglichen Index durch, und ein Test prüft für jede Kachel, dass er auf sie zeigt.
+
+Aus demselben Grund ist **Ziehen bei aktiver Sortierung abgeschaltet**: Ein Zug hätte das Ziel aus der Anzeige-Position berechnet und die falschen Kacheln in `uiConfig` vertauscht.
+
+Kacheln ohne Zeitstempel stehen bei „zuletzt aktualisiert" am Ende — nie aktualisiert ist nicht dasselbe wie gerade eben.
+
+Geprüft bei 1280 und 375 Pixel, in beiden Modi. Im Dunkel-Modus ist der gemessene Wert byteweise derselbe wie zuvor.
+
+## [1.19.0] - 2026-08-14
+### Added
+- **Ladevorgänge liegen jetzt dauerhaft in SQLite.** Bis v1.18.1 wurde der gesamte Verlauf bei jedem Abruf neu von BMW geholt — acht bis zehn Seiten, jede ein Abruf aus einem Tagesbudget von 50. Geholt wird nur noch, was neu dazugekommen ist: **im Normalfall eine Seite.** Der Vormittag des 14.08.2026 hätte damit statt 29 Anfragen etwa drei gekostet.
+- **Das Archiv wächst über BMWs 45-Tage-Grenze hinaus.** Ältere Zeiträume lehnt die API mit CU-401 ab; was einmal gespeichert ist, bleibt aber. Nach einigen Monaten enthält das Archiv mehr, als BMW überhaupt ausliefern kann. Die Ansicht ist deshalb **nicht mehr auf 45 Tage begrenzt** — `days=90` lieferte bisher HTTP 400.
+- **Ein abgebrochener Durchlauf ist fortsetzbar.** Jede Seite wird sofort abgelegt, nicht erst am Ende. Bricht BMW auf Seite acht ab, stehen die sieben davor im Archiv, und Aktualisieren sammelt weiter.
+
+### Changed
+- **Das Delta-Fenster überlappt um drei Tage** (`CHARGING_OVERLAP_DAYS`). Eine Ladung, die beim Abruf noch lief, steht unvollständig in der Datenbank — ohne Endzeit und mit zu wenig Energie. Ohne Überlappung bliebe dieser erste, falsche Stand für immer stehen; jetzt wird sie beim nächsten Abruf überschrieben.
+- **Gespeichert wird BMWs Rohantwort.** Die AC/DC-Einordnung und die Leistungsberechnung sind Ableitungen von uns. Lägen sie eingefroren in der Datenbank, erreichte eine spätere Korrektur die alten Zeilen nicht mehr — dieselbe Überlegung wie beim Steckbrief in v1.16.0. Ein Test hebt die AC/DC-Schwelle an und prüft, dass sich die Einordnung gespeicherter Zeilen mitbewegt.
+- **Der Ladeverlauf liegt nicht mehr im Zwischenspeicher von v1.18.0.** Zwei Quellen für dieselben Daten wären ein Fehler. Stammdaten, Bild, Reifen und Fahrzeugliste bleiben dort.
+- **`pages` zählt jetzt die Seiten, die dieser Aufruf geholt hat** — null heißt, alles kam aus dem Archiv. **`incomplete` beschreibt das Archiv**, nicht mehr die Ansicht: Angezeigt wird immer alles Gespeicherte, offen ist nur, ob BMW noch ältere Vorgänge schuldet. Neu ist `archived`, die Gesamtzahl im Archiv.
+- **Ein Zeitraumwechsel kostet keinen Abruf mehr.** Bisher hatte jeder Zeitraum einen eigenen Zwischenspeicher-Schlüssel — das war am 14.08.2026 der zweite Teil der 28 Anfragen.
+
+### Note
+Schlüssel ist `(vin, start_time)`. BMW liefert keine Sitzungs-ID; ein Fahrzeug kann aber nicht zwei Ladungen in derselben Sekunde beginnen.
+
+Ladevorgänge werden **nie** bereinigt, wie der Standortverlauf. Telemetrie wird nach 30 Tagen gelöscht; für ein Archiv wäre das sinnlos.
+
+## [1.18.1] - 2026-08-14
+### Fixed
+- **Ein Fehler auf Seite acht verwarf die sieben Seiten davor.** Am Produktivsystem gemessen (14.08.2026, 07:52:08 bis 07:52:50, direkt nach dem Deploy von v1.18.0): BMW brach den Ladeverlauf mit `CU-500` ab, **zweimal reproduzierbar bei derselben Seite**. Beide Male wurden sieben bereits bezahlte Seiten weggeworfen, und der zweite Anlauf kaufte sie erneut. Bilanz: **19 Anfragen, kein einziger angezeigter Ladevorgang**, danach war das Tagesbudget von 50 für 18 Stunden aufgebraucht. Der Server liefert jetzt aus, was bis zum Abbruch kam.
+- **Das Teilergebnis wird zwischengespeichert.** Sonst kostet jeder erneute Aufruf wieder alle Seiten bis zur defekten. Wer es trotzdem noch einmal versuchen will, drückt Aktualisieren — das umgeht den Zwischenspeicher wie bisher.
+- **Die Oberfläche benennt den Abbruch**, statt eine gekürzte Liste als vollständig auszugeben: „BMW hat den Verlauf nach N Seiten abgebrochen." Die Antwort trennt dafür zwei Fälle, die vorher beide nur `has_more` setzten — `incomplete` heißt „BMW hat uns unterbrochen", `has_more` allein heißt „unsere eigene Seitengrenze".
+
+### Note
+**Korrektur zu v1.17.1:** Dort steht, ein `CU-500` sei ein vorübergehender Fehler. Das trifft hier nicht zu — BMW scheitert an einer festen Stelle im Verlauf, zweimal identisch. Wiederholen hilft nicht.
+
+Damit wird auch verständlich, warum der alte Rückfall auf 30 Tage funktioniert hatte: BMWs defekter Datensatz ist älter als 30 Tage, der kürzere Zeitraum erreichte ihn nicht. Das war Zufall, kein verlässliches Verhalten — es kostete jedes Mal einen zweiten vollständigen Durchlauf und hätte bei einem jüngeren Defekt gar nichts gebracht. Die Einschränkung des Rückfalls auf HTTP 400 bleibt daher richtig; sie hat den darunterliegenden Fehler nur sichtbar gemacht.
+
+Der Verwurf steckte **schon vor v1.18.0** im Code: Der `try`-Block umschließt die ganze Blätterschleife, und das Ergebnis entsteht erst danach.
+
 ## [1.18.0] - 2026-08-14
 ### Added
 - **Der Zwischenspeicher übersteht einen Neustart.** Bis v1.17.2 war er ein nacktes Dict im Arbeitsspeicher — nach jedem Deploy leer, und der erste Aufruf der Oberfläche kaufte alles noch einmal. Am Produktivsystem gemessen (13.08.2026, 14:41:16 bis 14:41:32): **13 Anfragen in 16 Sekunden**, davon elf Seiten Ladeverlauf; die letzte lief in ein CU-429, das Tagesbudget war aufgebraucht. An einem Entwicklungstag mit drei, vier Deploys ist ein Budget von 50 allein damit weg. Die Antworten liegen jetzt in derselben SQLite wie Telemetrie und Standortverlauf, also im Volume `./data`.
