@@ -10,6 +10,19 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 > Die Historie beginnt mit v1.8.0. Ältere Einträge betreffen überwiegend interne
 > Umbauten ohne Auswirkung auf den Betrieb der Bridge.
 
+## [1.25.0] - 2026-08-17
+### Added
+- **Die Ladeverlauf-Tabelle lässt sich sortieren** — alle sieben Spalten per Klick auf den Kopf, erneuter Klick dreht die Richtung. Die aktive Spalte ist hervorgehoben und trägt einen Pfeil; die Wahl bleibt im Browser. Voreingestellt bleibt „Beginn ▼", also neueste zuerst wie bisher.
+
+### Note
+**Ladestand sortiert nach der Differenz.** Die Spalte zeigt „20 % → 80 %"; nach einem der beiden Werte zu sortieren wäre sinnlos. Gemeint ist, wie viel geladen wurde — `soc_end − soc_start`. Im Browser geprüft: 20→80 (60 Punkte) steht vor 30→75 (45) vor 85→96 (11), obwohl der letzte den höchsten Endstand hat.
+
+**Leistung sortiert nach dem angezeigten Wert.** Seit v1.24.0 steht dort bei importierten Vorgängen ein abgeleiteter Wert mit `*`. Nach `active_power_kw` zu sortieren hieße, alle importierten Zeilen als „ohne Wert" ans Ende zu schieben — obwohl in der Spalte eine Zahl steht. Sortiert wird deshalb dieselbe Größe, die der Nutzer sieht.
+
+**Fehlende Werte stehen immer hinten**, in beiden Richtungen. Sonst füllte „aufsteigend nach Leistung" die erste Bildschirmseite mit Vorgängen ohne Messwert, und die eigentliche Antwort wäre unsichtbar. Eine Null ist dabei kein fehlender Wert: 0 kWh gehört ans Ende der Skala, nicht hinter alles.
+
+Anders als bei den Kacheln in v1.20.0 ist der Anzeige-Index hier ungefährlich — er verbindet nur eine Zeile mit ihrer Detailzeile und zeigt in nichts Gespeichertes.
+
 ## [1.24.0] - 2026-08-17
 ### Fixed
 - **Die Tabelle zeigte nur die Straße, obwohl die volle Adresse vorlag.** Gemeldet an „Marktplatz 2", während im Export „Marktplatz 2, 1234 Musterort" steht. In der Detailzeile standen Ortsname und Adresse zusätzlich hintereinander — zweimal fast dasselbe. An 205 Vorgängen aus vier Monatsexporten gemessen, gibt es drei Muster, und nur **6 von 205** fallen unter das einfachste:
