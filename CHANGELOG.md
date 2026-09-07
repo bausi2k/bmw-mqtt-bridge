@@ -10,6 +10,36 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 > Die Historie beginnt mit v1.8.0. Ältere Einträge betreffen überwiegend interne
 > Umbauten ohne Auswirkung auf den Betrieb der Bridge.
 
+## [1.26.0] - 2026-09-07
+### Added
+- **Eine Sperre nach einer Störung bei BMW.** Antwortet die CarData-API mit einer vorübergehenden Störung, geht für eine Weile keine weitere Anfrage hinaus. Die Frist steigt bei anhaltender Störung an — 5, 15, 30, 60 Minuten — und fällt beim ersten erfolgreichen Abruf wieder auf null. Ein Knopf **„Trotzdem abfragen"** umgeht sie für genau einen Versuch.
+
+  Anlass war der 07.09.2026. BMW lieferte auf jedem Endpunkt HTTP 503, und weil es keine Retry-Logik gibt, wurde aus jedem Klick ein weiterer Fehlversuch:
+
+      09:31:31  /image                          503
+      09:31:31  /basicData                      503
+      09:31:37  /smartMaintenanceTyreDiagnosis  503
+      09:31:39  /smartMaintenanceTyreDiagnosis  503
+      09:31:41  /smartMaintenanceTyreDiagnosis  503
+      09:31:52  /chargingHistory                503
+
+  Sechs Abrufe in 21 Sekunden, dreimal derselbe Tab, alle sechs im Tagesbudget verbucht, keiner mit Daten.
+
+### Note
+**Die Sperre gilt für alle Endpunkte gemeinsam.** Am 07.09. fielen Bild, Basisdaten, Reifen und Ladeverlauf gleichzeitig aus — die Störung liegt bei BMW, nicht am einzelnen Endpunkt. Je Endpunkt ließe sich dieselbe Sperre viermal auslösen.
+
+**Sie liegt in der Datenbank, nicht im Arbeitsspeicher.** Eine Sperre, die ein Neustart aufhebt, ist keine. Der Trotzdem-Knopf ist der vorgesehene Weg daran vorbei: ein Klick statt eines Containerstarts, und er hinterlässt eine Spur im Protokoll.
+
+**Die Stufe fällt erst bei einem Erfolg zurück,** nicht schon beim Ablauf der Frist. Sonst bliebe es dauerhaft bei fünf Minuten und die Eskalation liefe ins Leere.
+
+**Nur vorübergehende Störungen lösen sie aus** — `CU-500` und `CU-503`, dazu ein nacktes 5xx ohne Fehlercode vom vorgelagerten Gateway. Ein `CU-401` wird durch Warten nicht richtig, und das Tageslimit `CU-429` hat seit v1.8.12 seine eigene Behandlung.
+
+**Fehlversuche zählen weiterhin ins Tagesbudget.** Ob BMW gescheiterte Anfragen anrechnet, ist nicht dokumentiert. Sie mitzuzählen überschätzt den Verbrauch im Zweifel — die sichere Richtung, solange die Frage offen ist.
+
+**Ein zwischengespeicherter Wert wird auch während einer Sperre ausgeliefert.** Die Reihenfolge ist Cache, dann Sperre, dann BMW; sonst verschlechterte die Sperre die Anzeige, statt sie zu schützen. Der Ladeverlauf zeigt aus demselben Grund weiter alles aus dem Archiv, nur das Ergänzen entfällt.
+
+**Der Live-Datenstrom ist nicht betroffen.** Er lief auch während der Störung am 07.09. durch — die Sperre gilt allein für die REST-Abrufe.
+
 ## [1.25.0] - 2026-08-17
 ### Added
 - **Die Ladeverlauf-Tabelle lässt sich sortieren** — alle sieben Spalten per Klick auf den Kopf, erneuter Klick dreht die Richtung. Die aktive Spalte ist hervorgehoben und trägt einen Pfeil; die Wahl bleibt im Browser. Voreingestellt bleibt „Beginn ▼", also neueste zuerst wie bisher.
