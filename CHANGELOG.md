@@ -10,6 +10,48 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 > Die Historie beginnt mit v1.8.0. Ältere Einträge betreffen überwiegend interne
 > Umbauten ohne Auswirkung auf den Betrieb der Bridge.
 
+## [1.27.2] - 2026-09-16
+### Fixed
+- **Die Tags `v1.27.0` und `v1.27.1` zeigen in diesem Repo auf einen älteren Stand.** Ursache war die Reihenfolge beim Veröffentlichen: Das Release wird automatisch angelegt, sobald im Quell-Repository ein Tag entsteht — die Dokumentation hier wird aber von Hand nachgezogen. Der Tag landete deshalb auf dem Stand der vorigen Version.
+
+  **Was das bedeutet:** Wer nach Tag herunterlädt, bekommt bei `v1.27.0` und `v1.27.1` eine ältere README und einen älteren CHANGELOG. Der Stand auf `main` ist der richtige. Das **Image** ist davon nicht betroffen — es wird aus dem Quell-Repository gebaut und trägt den richtigen Code.
+
+  Ab dieser Version bricht die Veröffentlichung ab, wenn die Dokumentation hier noch fehlt. Der Tag entsteht dann gar nicht erst, statt auf den falschen Stand zu zeigen. Die vorhandenen Tags bleiben unangetastet: Ein veröffentlichter Tag wird in diesem Projekt nicht verschoben.
+
+## [1.27.1] - 2026-09-16
+### Changed
+- **Der `telematicData`-Versuch ist ausgewertet — als Ersatz für vorhandene Abrufe taugt er nicht.** Am Livesystem gemessen: Von den drei im Konto liegenden Containern enthält keiner einen Schlüssel, den der MQTT-Datenstrom nicht ohnehin führt. Der Strom hat 62 Schlüssel, die Container 4 bzw. 9. Zwei Schlüssel sahen zunächst nach einem Gewinn aus, hielten der Prüfung aber nicht stand: `vehicle.cabin.door.lock.status` steht im Strom als `vehicle.cabin.door.status`, und `…stateOfCharge.displayed` kam ohne Wert.
+
+  Die Antwort von `/api/telematic-data` trägt den Vorbehalt jetzt selbst: Der Abgleich vergleicht Schlüsselnamen exakt, derselbe Messwert kann im Strom unter anderem Namen stehen. Gezählt wird außerdem, wie viele Schlüssel gar keinen Wert haben. Und die Antwort stellt die Zeitstempel beider Quellen im selben Augenblick gegenüber und fällt ein Urteil dazu — denn eine Frage bleibt offen: ob die API bei **stehendem** Fahrzeug frischere Werte liefert als der dann stundenlang schweigende Datenstrom. Beide Messungen fielen in Zeiten mit aktivem Fahrzeug und konnten das nicht beantworten. Budget spart der Endpunkt so oder so nicht.
+
+### Note
+**Warum `telematicData` keine Abrufe sparen kann.** Es ist dieselbe Datenquelle, nur ein anderer Transportweg — ein Container ist bloß eine Auswahlliste der Schlüssel, die der Strom ohnehin schickt. Was Budget kostet, ist ausdrücklich ausgenommen: Reifen, Ladeverlauf, Basisdaten und Bild haben eigene Endpunkte, und die Spezifikation sagt zweimal wörtlich, dass `telematicData` deren Schlüssel nicht herausgibt. Und die Richtung stimmt nicht: Der Strom kostet null Abrufe, jede Abfrage kostet einen.
+
+## [1.27.0] - 2026-09-16
+### Fixed
+- **Ladevorgänge, die beim Abruf noch liefen, blieben für immer unvollständig.** Sie kommen ohne Endzeit und ohne Energiemenge ins Archiv — BMW trägt beides erst beim Abschluss nach. Nachgefragt hat sie danach niemand mehr: Das Nachladefenster reichte nur drei Tage hinter den neuesten bekannten Vorgang zurück. Im Archiv des Produktivsystems betraf das vier von 128 Vorgängen, den auffälligsten seit drei Wochen:
+
+      2026-08-27 20:30 | 21.710 s | 148 Ladeblöcke | SoC 18 % → 73 % | kWh fehlt
+
+  Sechs Stunden Ladung, 55 Prozentpunkte, kein Energiewert. Die Untergrenze des Fensters richtet sich jetzt zusätzlich am ältesten offenen Vorgang aus.
+
+### Changed
+- **Der Hinweis über der Ladetabelle nennt die Ursache, statt nur zu zählen.** Bisher stand dort „N Ladevorgänge ohne geladene Energie ausgeblendet". Jetzt: „Ausgeblendet: 16 Ladevorgänge ohne Ladung, 4 Ladevorgänge noch laufend."
+
+### Added
+- **Zwei lesende Endpunkte für einen Versuch mit `telematicData`:** `/api/containers` listet die im BMW-Konto angelegten Container, `/api/telematic-data` fragt deren Werte ab und sagt dazu, wie viele der Schlüssel der Livestream ohnehin schon liefert.
+
+### Note
+**Damit ist beantwortet, was seit v1.17.0 offen stand.** Der Changelog hielt dort fest: „Nicht geklärt: wodurch diese Einträge entstehen — abgebrochene Ladung, reine Vorklimatisierung oder Stecker ohne Freigabe." Die Vermutung, das Feld `businessErrors` würde es erklären, ist am Archiv widerlegt: Es steckt in 84 % der **erfolgreichen** Ladungen und nur in 15 % der energielosen, und sein Inhalt ist mit 1241 von 1243 Einträgen fast immer derselbe Satz. Die Auswertung von 128 Vorgängen zeigt stattdessen zwei getrennte Gruppen — 16 mit Dauer 0 und ohne Ladeblöcke (eingesteckt, nie geladen) und 4, die beim Abruf noch liefen.
+
+**Der Filter für die Nachfrage ist enger als naheliegend.** Ein Vorgang ohne Endzeit gilt nur dann als unfertig, wenn er Ladeblöcke hat. Ohne diese Bedingung hätte ein Vorgang vom 17.07. — Dauer 0, keine Blöcke, 0,0 kWh, den BMW nie abschließen wird — das Fenster dauerhaft auf 45 Tage aufgerissen und die tägliche Grundlast von einem Abruf auf rund neun gehoben. Der erste Entwurf hatte genau diesen Fehler; gefunden hat ihn die Gegenprobe am echten Archiv.
+
+**Einmalige Kosten der Behebung:** Am aktuellen Stand reicht das Fenster bis zum 24.08. zurück, 23 statt der möglichen 45 Tage. Das sind 31 Vorgänge und damit 4 Seiten — der nächste Nachladelauf kostet 4 Abrufe statt 1. Sobald BMW die offenen Vorgänge abgeschlossen hat, schrumpft es von selbst wieder auf die drei Tage Überlappung.
+
+**`telematicData` spart entgegen der Erwartung keine Abrufe.** Die Spezifikation schließt es aus: Schlüssel mit eigenem Endpunkt — Reifen, Ladeverlauf, Basisdaten, Bild — gibt der Endpunkt ausdrücklich nicht heraus. Die beiden neuen Endpunkte sind deshalb als Versuch angelegt, nicht als Funktion: Sie messen, ob etwas übrig bleibt, das der Livestream nicht ohnehin kostenlos zustellt. Das Anlegen eines Containers ist die einzige schreibende Operation der CarData-API und bleibt bewusst außen vor.
+
+**Zwei Felder liefert BMW für dieses Fahrzeug nie:** `energyDecreaseHvbKwh` (daher ist die Spalte für die Akku-Energie dauerhaft leer) und `energyDischargedKwh`. Über 128 Vorgänge hinweg kein einziges Mal gesetzt. Die Abbildung bleibt trotzdem stehen — belegt ist nur, dass dieses Fahrzeug sie nicht liefert.
+
 ## [1.26.0] - 2026-09-07
 ### Added
 - **Eine Sperre nach einer Störung bei BMW.** Antwortet die CarData-API mit einer vorübergehenden Störung, geht für eine Weile keine weitere Anfrage hinaus. Die Frist steigt bei anhaltender Störung an — 5, 15, 30, 60 Minuten — und fällt beim ersten erfolgreichen Abruf wieder auf null. Ein Knopf **„Trotzdem abfragen"** umgeht sie für genau einen Versuch.
