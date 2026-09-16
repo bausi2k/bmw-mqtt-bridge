@@ -10,6 +10,29 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 > Die Historie beginnt mit v1.8.0. Ältere Einträge betreffen überwiegend interne
 > Umbauten ohne Auswirkung auf den Betrieb der Bridge.
 
+## [1.28.0] - 2026-09-16
+### Added
+- **Batteriegesundheit im Steckbrief.** BMW streamt die nutzbare Energie des Hochvoltakkus als `batteryManagement.maxEnergy`. Geteilt durch die Nennkapazität ergibt das einen Gesundheitswert — am Produktivfahrzeug **94,6 %** (77,0 von 81,4 kWh, aus 13.704 Messpunkten).
+
+  Die Nennkapazität kommt aus der neuen Einstellung `BATTERY_NOMINAL_KWH` und hat **keinen Vorgabewert**. Sie ist je Modell verschieden; 81,4 kWh gilt für den i5 xDrive40. Ohne Angabe erscheint keine Zeile — geraten wird nicht.
+
+### Note
+**Gerechnet wird über 30 Tage, nicht über den Momentanwert.** Am Archiv der Produktivinstanz gemessen, 13.867 Punkte:
+
+    73 kWh   0,1 %       76 kWh  47,1 %       79 kWh   0,1 %
+    74 kWh   1,8 %       77 kWh  39,4 %
+    75 kWh   8,6 %       78 kWh   2,7 %
+
+Der Wert schwankt um 6 kWh, also zwischen 89,7 und 97,1 Prozent — als Momentanwert angezeigt sähe es aus, als altere der Akku über Nacht und genese morgens. Der höhere Bereich fiel dabei auf Ladetage. Verwendet wird deshalb das **95. Perzentil**: Der Median (93,4 %) wäre systematisch zu pessimistisch, weil viele Messungen bei kaltem Akku entstehen, das Maximum (97,1 %) hinge an einem einzigen Punkt.
+
+**Die Genauigkeit ist begrenzt, und das steht dabei.** BMW liefert nur ganze Kilowattstunden — ein Schritt sind rund 1,2 Prozentpunkte. Der Hinweis an der Zeile nennt das Verfahren, die Zahl der Messpunkte und dass die Nennkapazität aus der Konfiguration stammt, nicht von BMW. Wer eine Nachkommastelle sieht, soll wissen, worauf sie beruht.
+
+**Reine Verbrenner sind nicht betroffen.** Dort streamt BMW `maxEnergy` nie, und dann entsteht keine Zeile — unabhängig davon, was konfiguriert ist. Dasselbe gilt bei zu dünner Datenlage (unter zehn Messpunkten) und bei einer unlesbaren Angabe. Zehn Nullwerte im Archiv (0,07 %) werden gefiltert; ungefiltert hätte die Anzeige gelegentlich 0 Prozent Gesundheit gemeldet.
+
+**Über 100 Prozent wird nicht gedeckelt.** Liegt der Wert darüber, ist die angegebene Nennkapazität zu klein — das soll auffallen, statt kaschiert zu werden.
+
+**Kostet keinen API-Abruf.** Gerechnet wird auf den Telemetriedaten, die ohnehin in SQLite liegen.
+
 ## [1.27.2] - 2026-09-16
 ### Fixed
 - **Die Tags `v1.27.0` und `v1.27.1` zeigen in diesem Repo auf einen älteren Stand.** Ursache war die Reihenfolge beim Veröffentlichen: Das Release wird automatisch angelegt, sobald im Quell-Repository ein Tag entsteht — die Dokumentation hier wird aber von Hand nachgezogen. Der Tag landete deshalb auf dem Stand der vorigen Version.
