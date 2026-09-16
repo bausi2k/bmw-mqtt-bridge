@@ -10,6 +10,15 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 > Die Historie beginnt mit v1.8.0. Ältere Einträge betreffen überwiegend interne
 > Umbauten ohne Auswirkung auf den Betrieb der Bridge.
 
+## [1.27.1] - 2026-09-16
+### Changed
+- **Der `telematicData`-Versuch ist ausgewertet — als Ersatz für vorhandene Abrufe taugt er nicht.** Am Livesystem gemessen: Von den drei im Konto liegenden Containern enthält keiner einen Schlüssel, den der MQTT-Datenstrom nicht ohnehin führt. Der Strom hat 62 Schlüssel, die Container 4 bzw. 9. Zwei Schlüssel sahen zunächst nach einem Gewinn aus, hielten der Prüfung aber nicht stand: `vehicle.cabin.door.lock.status` steht im Strom als `vehicle.cabin.door.status`, und `…stateOfCharge.displayed` kam ohne Wert.
+
+  Die Antwort von `/api/telematic-data` trägt den Vorbehalt jetzt selbst: Der Abgleich vergleicht Schlüsselnamen exakt, derselbe Messwert kann im Strom unter anderem Namen stehen. Gezählt wird außerdem, wie viele Schlüssel gar keinen Wert haben. Und die Antwort stellt die Zeitstempel beider Quellen im selben Augenblick gegenüber und fällt ein Urteil dazu — denn eine Frage bleibt offen: ob die API bei **stehendem** Fahrzeug frischere Werte liefert als der dann stundenlang schweigende Datenstrom. Beide Messungen fielen in Zeiten mit aktivem Fahrzeug und konnten das nicht beantworten. Budget spart der Endpunkt so oder so nicht.
+
+### Note
+**Warum `telematicData` keine Abrufe sparen kann.** Es ist dieselbe Datenquelle, nur ein anderer Transportweg — ein Container ist bloß eine Auswahlliste der Schlüssel, die der Strom ohnehin schickt. Was Budget kostet, ist ausdrücklich ausgenommen: Reifen, Ladeverlauf, Basisdaten und Bild haben eigene Endpunkte, und die Spezifikation sagt zweimal wörtlich, dass `telematicData` deren Schlüssel nicht herausgibt. Und die Richtung stimmt nicht: Der Strom kostet null Abrufe, jede Abfrage kostet einen.
+
 ## [1.27.0] - 2026-09-16
 ### Fixed
 - **Ladevorgänge, die beim Abruf noch liefen, blieben für immer unvollständig.** Sie kommen ohne Endzeit und ohne Energiemenge ins Archiv — BMW trägt beides erst beim Abschluss nach. Nachgefragt hat sie danach niemand mehr: Das Nachladefenster reichte nur drei Tage hinter den neuesten bekannten Vorgang zurück. Im Archiv des Produktivsystems betraf das vier von 128 Vorgängen, den auffälligsten seit drei Wochen:
