@@ -10,6 +10,17 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 > Die Historie beginnt mit v1.8.0. Ältere Einträge betreffen überwiegend interne
 > Umbauten ohne Auswirkung auf den Betrieb der Bridge.
 
+## [1.28.1] - 2026-09-16
+### Added
+- **Die Batteriegesundheit steht jetzt auch in der Übersicht**, als vierte Kachel neben Modell, VIN und Laufzeit. Bisher war sie nur im aufklappbaren Kasten „Fahrzeugdaten" zu finden, der standardmäßig zu ist.
+
+### Note
+**Die Kachelzeile war auf genau drei Spalten festgelegt.** Eine vierte Kachel wäre in eine zweite Reihe gerutscht und hätte dort ein Drittel der Breite belegt. Das Raster wächst jetzt mit (`auto-fit`) und sieht mit drei wie mit vier Kacheln richtig aus — im Browser bei 900 und 375 Pixeln geprüft.
+
+**Reine Verbrenner sehen die Kachel nicht.** Ohne Wert bleibt sie ausgeblendet, statt einen Platzhalterstrich zu zeigen — der sähe aus wie ein Defekt. Dieselbe Zusage wie beim Steckbrief, und sie gilt auch, solange `BATTERY_NOMINAL_KWH` nicht gesetzt ist.
+
+**Der Wert kommt fertig aus dem Backend** und steht als eigenes Feld in der Antwort von `/api/car-basic`. Ihn im JavaScript aus dem Steckbrief zu fischen wäre möglich gewesen, aber zerbrechlich: Die Beschriftung dort ist Text für Menschen, kein Schlüssel.
+
 ## [1.28.0] - 2026-09-16
 ### Added
 - **Batteriegesundheit im Steckbrief.** BMW streamt die nutzbare Energie des Hochvoltakkus als `batteryManagement.maxEnergy`. Geteilt durch die Nennkapazität ergibt das einen Gesundheitswert — am Produktivfahrzeug **94,6 %** (77,0 von 81,4 kWh, aus 13.704 Messpunkten).
