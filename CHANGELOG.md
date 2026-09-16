@@ -10,6 +10,14 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 > Die Historie beginnt mit v1.8.0. Ältere Einträge betreffen überwiegend interne
 > Umbauten ohne Auswirkung auf den Betrieb der Bridge.
 
+## [1.27.2] - 2026-09-16
+### Fixed
+- **Die Tags `v1.27.0` und `v1.27.1` zeigen in diesem Repo auf einen älteren Stand.** Ursache war die Reihenfolge beim Veröffentlichen: Das Release wird automatisch angelegt, sobald im Quell-Repository ein Tag entsteht — die Dokumentation hier wird aber von Hand nachgezogen. Der Tag landete deshalb auf dem Stand der vorigen Version.
+
+  **Was das bedeutet:** Wer nach Tag herunterlädt, bekommt bei `v1.27.0` und `v1.27.1` eine ältere README und einen älteren CHANGELOG. Der Stand auf `main` ist der richtige. Das **Image** ist davon nicht betroffen — es wird aus dem Quell-Repository gebaut und trägt den richtigen Code.
+
+  Ab dieser Version bricht die Veröffentlichung ab, wenn die Dokumentation hier noch fehlt. Der Tag entsteht dann gar nicht erst, statt auf den falschen Stand zu zeigen. Die vorhandenen Tags bleiben unangetastet: Ein veröffentlichter Tag wird in diesem Projekt nicht verschoben.
+
 ## [1.27.1] - 2026-09-16
 ### Changed
 - **Der `telematicData`-Versuch ist ausgewertet — als Ersatz für vorhandene Abrufe taugt er nicht.** Am Livesystem gemessen: Von den drei im Konto liegenden Containern enthält keiner einen Schlüssel, den der MQTT-Datenstrom nicht ohnehin führt. Der Strom hat 62 Schlüssel, die Container 4 bzw. 9. Zwei Schlüssel sahen zunächst nach einem Gewinn aus, hielten der Prüfung aber nicht stand: `vehicle.cabin.door.lock.status` steht im Strom als `vehicle.cabin.door.status`, und `…stateOfCharge.displayed` kam ohne Wert.
