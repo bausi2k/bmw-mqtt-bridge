@@ -10,6 +10,26 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 > Die Historie beginnt mit v1.8.0. Ältere Einträge betreffen überwiegend interne
 > Umbauten ohne Auswirkung auf den Betrieb der Bridge.
 
+## [1.29.0] - 2026-09-17
+### Added
+- **Die Batteriegesundheit hat jetzt einen dauerhaften Verlauf.** Eine Zeile je Tag, die **nie bereinigt** wird — damit die Degradation über Jahre sichtbar bleibt, nicht nur über 30 Tage. In der Karte steht eine kleine Verlaufslinie, ein Klick auf 📈 öffnet das Diagramm mit Tabelle.
+- **Die Anzeige ist von unter dem Fahrzeugbild nach Key Diagnostics gewandert**, zu den Werten, die man im Blick behält.
+
+### Note
+**Warum eine eigene Tabelle.** `telemetry_history` wird nach `TELEMETRY_RETENTION_DAYS` gelöscht, im Standard nach 30 Tagen. Eine Kurve darauf zu bauen hieße, sie monatlich wieder zu verlieren. Die Tagesverdichtung steht deshalb dort, wo auch `charging_sessions` und `location_history` stehen: außerhalb jeder Bereinigung. Rund 365 Zeilen im Jahr.
+
+**Verdichtet wird VOR dem Bereinigen.** Andersherum verdichtete der Wartungslauf Daten, die er im selben Durchgang gelöscht hat, und die Kurve bliebe für immer leer. Ein Test hält die Reihenfolge fest.
+
+**Gespeichert werden Kilowattstunden, nicht Prozent.** Die Prozentzahl entsteht erst bei der Anzeige. Wird `BATTERY_NOMINAL_KWH` später korrigiert, stimmt rückwirkend die ganze Kurve — mit gespeicherten Prozenten bliebe sie für immer falsch.
+
+**Beim ersten Lauf entsteht rückwirkend eine Kurve** aus den Tagen, die noch in der Telemetrie stehen. An echten Daten geprüft: 15 Tage aus dem Juni ergaben einen Verlauf zwischen 95,8 und 98,3 %; nach dem Löschen von 340.411 Rohzeilen blieben alle 15 Tageszeilen erhalten.
+
+**Die Achsenbeschriftung steht neben dem Diagramm, nicht darin.** Text im `viewBox` skaliert mit und war auf einem 375 Pixel breiten Display unleserlich. Als HTML behält er seine Größe — bei 620 und 375 Pixeln im Browser geprüft.
+
+**Reine Verbrenner sehen nichts davon.** Ohne `maxEnergy` im Datenstrom entsteht keine Tageszeile, keine Karte, keine Linie. Der Wartungslauf läuft dort unverändert durch.
+
+**Kostet keinen API-Abruf.**
+
 ## [1.28.1] - 2026-09-16
 ### Added
 - **Die Batteriegesundheit steht jetzt auch in der Übersicht**, als vierte Kachel neben Modell, VIN und Laufzeit. Bisher war sie nur im aufklappbaren Kasten „Fahrzeugdaten" zu finden, der standardmäßig zu ist.
