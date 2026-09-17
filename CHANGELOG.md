@@ -10,6 +10,15 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 > Die Historie beginnt mit v1.8.0. Ältere Einträge betreffen überwiegend interne
 > Umbauten ohne Auswirkung auf den Betrieb der Bridge.
 
+## [1.29.1] - 2026-09-17
+### Fixed
+- **Der Verlauf der Batteriegesundheit ließ sich nicht öffnen.** Ein Klick auf das Diagramm-Symbol tat nichts. Die Dialoge dieser Oberfläche stehen dauerhaft auf `display: flex` und sind nur durch `opacity: 0` und `pointer-events: none` unsichtbar; sichtbar werden sie über die Klasse `active`. Der Öffner setzte stattdessen `style.display` — wirkungslos. Ein Test prüft jetzt für **alle** Dialoge, dass sie über die Klasse geschaltet werden, nicht über `display`.
+
+### Changed
+- **Der `telematicData`-Versuch ist abgeschlossen.** Zwei Messungen bei stehendem Fahrzeug, nach 7 und nach 109 Minuten Funkstille: Beide Male lag der Datenstrom vorn, um 3 bis 10 Sekunden. Der abgerufene Wert war selbst 109 Minuten alt — exakt so alt wie der gestreamte. **Die Abfrage weckt das Fahrzeug nicht**; beide Wege lesen denselben Zustand in BMWs Hintergrundsystem. Die konstante Differenz ist die Übertragungszeit: BMW stempelt den Zeitpunkt der Fahrzeugmeldung, die Bridge den des Eintreffens.
+
+  Damit ist die Frage in beide Richtungen beantwortet — kein Nutzen beim Tagesbudget, keiner bei der Aktualität. Die beiden lesenden Endpunkte **bleiben**: Sie kosten im Ruhezustand nichts und machen die Frage nachprüfbar, falls BMW das Verhalten ändert. Eine Bedienung dafür in der Oberfläche entsteht bewusst **nicht** — sie lüde dazu ein, ein Tagesbudget für etwas auszugeben, das nachweislich nichts Neues liefert.
+
 ## [1.29.0] - 2026-09-17
 ### Added
 - **Die Batteriegesundheit hat jetzt einen dauerhaften Verlauf.** Eine Zeile je Tag, die **nie bereinigt** wird — damit die Degradation über Jahre sichtbar bleibt, nicht nur über 30 Tage. In der Karte steht eine kleine Verlaufslinie, ein Klick auf 📈 öffnet das Diagramm mit Tabelle.
