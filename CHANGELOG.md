@@ -10,6 +10,25 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 > Die Historie beginnt mit v1.8.0. Ältere Einträge betreffen überwiegend interne
 > Umbauten ohne Auswirkung auf den Betrieb der Bridge.
 
+## [1.30.0] - 2026-09-17
+### Added
+- **Zeitraumwahl im Verlauf der Batteriegesundheit:** 30 Tage, 1 Jahr oder alles. Ohne sie zeigte das Diagramm immer die gesamte Historie — bei einem Auto über fünf Jahre zu grob für die Frage „was war letzten Monat?".
+- **Die X-Achse hat Tick-Striche und vier bis fünf Datumsangaben** statt nur Anfang und Ende. Über ein Jahr sagte „erster und letzter Tag" nichts darüber, wo man sich in der Kurve befindet.
+
+### Changed
+- **Lange Zeiträume werden für die Anzeige verdichtet.** Bis 60 Tage bleibt es täglich, bis rund 14 Monate wird auf Wochen zusammengefasst, darüber auf Monate — Ziel sind höchstens rund 60 Punkte im Bild. Bei 365 Tageswerten auf 600 Zeichenbreiten wäre ein Punkt sonst unter zwei Pixel breit und die Kurve ein Zackenband.
+
+### Note
+**Gespeichert bleibt täglich.** Das ist die Messung und darf nicht gröber werden — sonst wäre die Auflösung für immer verloren. Verdichtet wird ausschließlich, was gezeichnet wird.
+
+**Zusammengefasst wird mit dem Median**, nicht erneut mit einem Perzentil. Der Tageswert ist bereits die robuste Schätzung; der Median einer Woche ist der typische Zustand dieser Woche und dämpft den Sprung von 1,2 Prozentpunkten, den BMWs ganzzahlige Kilowattstunden erzeugen.
+
+**Das Diagramm schreibt an, was es zeigt** — „ein Punkt je Tag", „je Woche", „je Monat". Ohne diesen Hinweis liest jemand eine Tagesgenauigkeit hinein, die das Bild nicht hat. Die Regel liegt im Backend und ist dort geprüft; es gibt genau eine Stelle dafür.
+
+**Die kleine Linie in der Karte zeigt weiterhin die letzten 60 Tage**, täglich. Fünf Jahre auf 18 Pixel Höhe wären sinnlos — dort geht es um die aktuelle Richtung, die Zahlen stehen im Overlay.
+
+Bei täglicher, wöchentlicher und monatlicher Stufe im Browser geprüft.
+
 ## [1.29.2] - 2026-09-17
 ### Changed
 - **Der Verlauf der Batteriegesundheit hat jetzt beschriftete Achsen.** Bisher stand darunter nur die Spanne — eine Angabe, keine Achse. Links stehen die Prozentwerte an den Gitterlinien samt Titel, unten das Datum mit dem Hinweis, dass ein Punkt einem Tag entspricht.
