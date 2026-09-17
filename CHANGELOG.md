@@ -10,6 +10,20 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 > Die Historie beginnt mit v1.8.0. Ältere Einträge betreffen überwiegend interne
 > Umbauten ohne Auswirkung auf den Betrieb der Bridge.
 
+## [1.29.2] - 2026-09-17
+### Changed
+- **Der Verlauf der Batteriegesundheit hat jetzt beschriftete Achsen.** Bisher stand darunter nur die Spanne — eine Angabe, keine Achse. Links stehen die Prozentwerte an den Gitterlinien samt Titel, unten das Datum mit dem Hinweis, dass ein Punkt einem Tag entspricht.
+- **Die Y-Achse rastet auf 5-Prozent-Schritte.** Die Untergrenze ist der nächste Schritt **unter** dem kleinsten Wert; liegt dieser genau auf einem Schritt, geht es einen weiter — sonst klebte die Kurve auf der Achse.
+
+      kleinster Wert 87 %  →  Achse ab 85 %
+      kleinster Wert 85 %  →  Achse ab 80 %
+      kleinster Wert 92 %  →  Achse ab 90 %
+
+### Note
+**Warum feste Schritte.** Eine Skala, die sich nach den Daten richtet, sähe bei jedem Aufruf anders aus, obwohl sich nichts geändert hat — und über Monate wäre nichts vergleichbar. Mit festen Schritten bleibt die Kurve lesbar, auch wenn ein neuer Messwert dazukommt.
+
+**Die kleine Linie in der Karte behält ihre eigene Skalierung.** Sie zeigt die Richtung auf 18 Pixel Höhe; mit der 5-Prozent-Raster wäre sie eine fast gerade Linie. Die Zahlen stehen im Overlay.
+
 ## [1.29.1] - 2026-09-17
 ### Fixed
 - **Der Verlauf der Batteriegesundheit ließ sich nicht öffnen.** Ein Klick auf das Diagramm-Symbol tat nichts. Die Dialoge dieser Oberfläche stehen dauerhaft auf `display: flex` und sind nur durch `opacity: 0` und `pointer-events: none` unsichtbar; sichtbar werden sie über die Klasse `active`. Der Öffner setzte stattdessen `style.display` — wirkungslos. Ein Test prüft jetzt für **alle** Dialoge, dass sie über die Klasse geschaltet werden, nicht über `display`.
