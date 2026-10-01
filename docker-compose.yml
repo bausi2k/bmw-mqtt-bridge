@@ -8,6 +8,11 @@ services:
     
     ports:
       - "${WEB_PORT:-8999}:${WEB_PORT:-8999}"
+      # Nur fuer die optionale Keba-Wallbox (KEBA_HOST in der .env):
+      # Die Wallbox antwortet ausschliesslich an Port 7090, nicht an den
+      # Quellport. Bewusst auskommentiert - ist der Port auf dem Host
+      # belegt, startet der Container sonst gar nicht.
+      # - "7090:7090/udp"
     
     env_file:
       - .env
