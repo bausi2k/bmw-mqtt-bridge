@@ -10,6 +10,41 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 > Die Historie beginnt mit v1.8.0. Ältere Einträge betreffen überwiegend interne
 > Umbauten ohne Auswirkung auf den Betrieb der Bridge.
 
+## [1.31.0] - 2026-10-01
+### Added
+- **Eine Keba-P30-Wallbox kann als zweite Messquelle dienen.** Sie misst dieselbe Ladung an der Wand, unabhängig vom Fahrzeug. Zwei Dinge kommen dabei heraus, beide am Livesystem belegt.
+
+  **BMW meldet durchgehend mehr als der Wandzähler.** Über sechs zuordenbare Ladungen hinweg 1,5 bis 2,5 Prozent:
+
+      Beginn             Wallbox      BMW     Diff    Abw.
+      2026-09-26 13:21    13,277    13,61   -0,333   -2,5 %
+      2026-09-27 09:43    14,692    14,96   -0,268   -1,8 %
+      2026-09-28 16:01     0,376     0,37   +0,006   +1,6 %
+      2026-09-29 06:45     2,371     2,41   -0,039   -1,6 %
+      2026-09-29 19:53    55,708    56,55   -0,842   -1,5 %
+      2026-09-30 19:24    56,115    56,96   -0,845   -1,5 %
+      --------------------------------------------------
+      Summe              142,54    144,86   -2,32    -1,6 %
+
+  Die Richtung ist bemerkenswert: Physikalisch müsste der Wandzähler **mehr** messen — zwischen ihm und dem Auto liegen noch Kabelverluste. Er misst weniger. BMWs `energyConsumedFromPowerGridKwh` ist damit offenbar keine reine Netzmessung.
+
+  **BMW übergeht ganze Ladungen.** Vier von zehn Wallbox-Sitzungen hatten im Ladeverlauf kein Gegenstück, zusammen 38,3 kWh, darunter eine einzelne mit **18,3 kWh über acht Stunden**. Am 28.09. hat BMW die kleine Ladung um 16:01 protokolliert und die große davor ausgelassen. Diese Ladungen erscheinen jetzt als eigene Zeilen im Ladeverlauf, mit ⚡ gekennzeichnet.
+
+### Note
+**Ohne `KEBA_HOST` passiert nichts.** Kein Socket, kein Thread, keine Zeile, kein Hinweis — dieselbe Zusage wie bei der Batteriegesundheit für reine Verbrenner.
+
+**Der Container braucht `7090:7090/udp`.** Nachgemessen: Die Wallbox antwortet ausschließlich an Port 7090, nicht an den Quellport. Die Freigabe steht **nicht** vorkonfiguriert in der compose-Datei — ein belegter Port hinderte sonst jeden anderen Nutzer am Start.
+
+**Der Ringpuffer ist die eigentliche Schwierigkeit.** Die Wallbox hält nur 30 Sitzungen. Zu oft abzufragen liest jedes Mal dieselben dreißig; zu selten lässt Ladungen unwiederbringlich durchfallen. Gelöst über die fortlaufende Session ID: Die Abfrage bricht ab, sobald eine bekannte ID auftaucht — ein Lauf kostet im Normalfall ein bis zwei UDP-Pakete statt dreißig. Fällt doch etwas durch, wird es gemeldet statt still zu verschwinden.
+
+**UDP und Modbus TCP schließen sich laut Herstellerdokumentation aus.** Wer die Wallbox bereits über Modbus anbindet, kann UDP nicht zusätzlich nutzen.
+
+**Eine geteilte Wallbox würde in die Irre führen.** Lädt dort ein zweites Fahrzeug, erschiene dessen Ladung als „BMW hat etwas übersehen".
+
+**Die Dokumentation des Herstellers ist unvollständig.** Für `reason` nennt sie 0, 1 und 10 — beobachtet wurde auch 5. Für `timeQ` nennt sie 0, X und 2 — beobachtet wurde 3. Unbekannte Werte werden durchgereicht, nicht abgewiesen.
+
+**Kostet keinen BMW-Abruf.** Die Wallbox wird im Heimnetz gefragt, verglichen wird auf zwei Archiven.
+
 ## [1.30.0] - 2026-09-17
 ### Added
 - **Zeitraumwahl im Verlauf der Batteriegesundheit:** 30 Tage, 1 Jahr oder alles. Ohne sie zeigte das Diagramm immer die gesamte Historie — bei einem Auto über fünf Jahre zu grob für die Frage „was war letzten Monat?".
