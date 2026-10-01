@@ -10,6 +10,38 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 > Die Historie beginnt mit v1.8.0. Ältere Einträge betreffen überwiegend interne
 > Umbauten ohne Auswirkung auf den Betrieb der Bridge.
 
+## [1.32.0] - 2026-10-01
+### Added
+- **Die optionalen Einstellungen stehen jetzt in der Konfigurationsseite.** Bisher zeigte der Editor nur, was in der `.env` **schon drinsteht** — und weil alle optionalen Einträge in der Vorlage auskommentiert sind, war keiner von ihnen über die Oberfläche erreichbar. Wer die Keba-Wallbox einschalten oder `BATTERY_NOMINAL_KWH` setzen wollte, musste an die Datei im Container.
+
+  Angeboten werden alle 18 optionalen Einstellungen, nach Gruppen geordnet: Keba-Wallbox, Batteriegesundheit, Protokoll, Datenaufbewahrung, Standortverlauf, Kartenkacheln, MQTT-Broker und Weboberfläche. Jede trägt eine Erklärung — eine Zeile wie `GPS_MAX_MEASUREMENT_DELTA` ist sonst nicht zu deuten.
+
+- **Zwei Einstellungen waren überhaupt nicht dokumentiert.** Beim Abgleich zwischen Quelltext und Katalog fielen `GPS_MAX_MEASUREMENT_DELTA` und `MQTT_DEBUG` auf: Der Code liest sie, in `example.env` kamen sie nicht vor. Beide stehen jetzt dort.
+
+### Changed
+- **Die Konfigurationsseite ist gegliedert statt eine lange Spalte.** Überschriften je Gruppe, zwei Spalten nebeneinander, solange Platz ist, und der Speichern-Knopf sitzt in einem eigenen Fuß statt frei im Fluss. Zahlen- und Auswahlfelder waren bisher gar nicht gestaltet — sie fielen aus dem Raster.
+- **Die Meldung nach dem Speichern nennt den richtigen Befehl.** Sie sagte „restart container". Ein `docker compose restart` genügt aber nicht: Compose liest `env_file` beim **Erstellen** des Containers ein, es braucht `up -d`. Genau daran war schon ein Deploy gescheitert.
+
+### Note
+**Leer gelassene Felder werden nicht geschrieben.** Sonst stünde nach dem ersten Speichern die halbe Vorlage als `KEBA_HOST=` in der Datei — funktional harmlos, aber es sähe aus wie eine Konfiguration. Ein leeres Feld zu einem **vorhandenen** Schlüssel wird dagegen geschrieben: Das ist das Abschalten.
+
+**Der Katalog ist die einzige Liste.** Die Oberfläche holt ihn über `/api/config-schema` und pflegt keine eigene — zwei Listen liefen binnen einer Version auseinander. Ein Test gleicht den Katalog gegen den Quelltext ab: Jede optionale Variable, die der Code liest, muss darin stehen, und keine darin stehen, die niemand liest. Genau dieser Abgleich hat die beiden undokumentierten Einstellungen gefunden.
+
+**Alles wirkt erst nach einem Neustart.** Der Editor schreibt die Datei; der laufende Prozess hat seine Werte beim Start gelesen. Für `LOG_LEVEL` ist das als Issue #19 festgehalten — solange es offen ist, gilt die Regel ausnahmslos, und die Oberfläche sagt es auch so.
+
+**Werte stehen nicht im Katalog.** Er beschreibt die Einstellungen, die Werte kommen weiterhin aus `/api/config`, wo Geheimnisse maskiert werden.
+
+## [1.31.1] - 2026-10-01
+### Fixed
+- **Der Wallbox-Vergleich antwortete in der Produktivinstanz mit HTTP 500.** Die Keba lieferte sauber — 29 Ladesitzungen beim ersten Lauf —, aber die Seite, die sie mit BMW vergleicht, scheiterte bei jedem Aufruf. Der Grund ist eine Zeile: `load_charging_sessions(vin, days=tage)`. Dieses Argument gibt es nicht, die Funktion nimmt `from_ts` und `to_ts`.
+
+### Note
+**Warum 916 Tests das nicht gefunden haben.** Die betroffene Funktion `_bmw_ladungen_fuer_vergleich` war eigens herausgelöst worden, „damit der Vergleich sie in Tests ersetzen kann". Genau das ist dann fünfmal passiert — jeder Test setzte ein Testdouble an ihre Stelle. Die Funktion selbst war damit in keinem einzigen Testlauf ausgeführt worden, und die Naht zwischen ihr und der Datenbank blieb ungeprüft.
+
+**Die Lehre, als Test festgehalten.** Eine Funktion, die nur herausgelöst wurde, damit Tests sie ersetzen können, braucht mindestens einen Test, der sie wirklich ausführt. `tests/test_wallbox_vergleich_echt.py` geht den ganzen Weg gegen eine echte Datenbank, ohne jedes Testdouble — einschließlich der Prüfung, dass die Antwort durch die JSON-Serialisierung passt.
+
+**Gefunden hat ihn der Betrieb, nicht die Entwicklung** — dasselbe Muster wie beim nicht klickbaren Diagramm in v1.29.1.
+
 ## [1.31.0] - 2026-10-01
 ### Added
 - **Eine Keba-P30-Wallbox kann als zweite Messquelle dienen.** Sie misst dieselbe Ladung an der Wand, unabhängig vom Fahrzeug. Zwei Dinge kommen dabei heraus, beide am Livesystem belegt.
