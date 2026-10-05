@@ -10,6 +10,59 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 > Die Historie beginnt mit v1.8.0. Ältere Einträge betreffen überwiegend interne
 > Umbauten ohne Auswirkung auf den Betrieb der Bridge.
 
+## [1.34.0] - 2026-10-05
+### Added
+- **Der Verlauf der Batteriegesundheit zeigt jetzt Werte beim Überfahren.** Das Diagramm zeichnete eine Linie und sonst nichts; alle Zahlen dahinter lagen bereits vor, sichtbar waren sie nur in der Tabelle darunter. Eine Führungslinie, ein Punkt auf der Kurve und ein Kästchen mit Datum, Gesundheit, nutzbarer Energie, der Spanne dieses Tages und der Zahl der Messungen:
+
+      2026-09-21
+      95,8 %  ·  78 kWh
+      Spanne 74–78 kWh aus 384 Messungen
+
+  **Die Spanne ist der eigentliche Gewinn.** Der gezeichnete Punkt ist das 95. Perzentil des Tages. Dass am selben Tag Werte zwischen 74 und 78 kWh ankamen, erklärt die Zacken in der Kurve, die sonst wie Degradation aussehen.
+
+- **Dasselbe über die Tastatur.** Das Diagramm ist fokussierbar; Pfeiltasten gehen Punkt für Punkt, `Pos1` und `Ende` springen an die Ränder, `Esc` blendet aus. Der Wert wird über `aria-live` angesagt.
+
+### Note
+**Zugeordnet wird über den Container, nicht über SVG-Koordinaten.** Das Diagramm steht auf `preserveAspectRatio="none"` und wird in x und y unterschiedlich gestreckt — eine Rückrechnung aus SVG-Koordinaten hinge an dieser Streckung, der Anteil im umgebenden Rechteck tut es nicht.
+
+**Bei verdichteter Darstellung ändert sich die Beschriftung mit.** Ab 60 Tagen zeigt das Diagramm Wochen, ab rund 14 Monaten Monate; im Kästchen steht dann „Woche ab …" beziehungsweise „Monat ab …". Stünde dort weiter nur ein Datum, läse man einen Wochenwert als Tageswert — und die summierten Messpunkte als Tagesmessung.
+
+**Auf dem Handy bleibt der Wert nach dem Tippen stehen.** Beim Wischen über eine 231 Pixel breite Kurve verdeckt der Finger genau die Stelle, die man lesen will; verschwände das Kästchen beim Loslassen, hätte man nichts davon. Der Mauszeiger räumt beim Verlassen weiterhin auf.
+
+**Das Kästchen weicht der Kurve aus.** Liegt der Punkt im oberen Bereich, rutscht es nach unten. Es fängt außerdem keine Zeigerereignisse ab — läge es unter dem Zeiger, löste es abwechselnd Verlassen und Bewegen aus, ein Flackern, das sich selbst antreibt.
+
+**Kilowattstunden ohne überflüssige Nachkommastelle.** BMW liefert ganze Werte, „74,0–78,0 kWh" sagt nicht mehr als „74–78 kWh". Nach der Verdichtung auf Wochen entstehen durch den Median aber Halbe, und die werden gezeigt.
+
+## [1.33.0] - 2026-10-02
+### Removed
+- **Die Anbindung der Keba-P30-Wallbox ist wieder entfernt.** Eingebaut in v1.31.0, über 29 Ladesitzungen gemessen, und dann als zu dünn befunden. Die Zahlen, die sie geliefert hat, stehen hier als Aufzeichnung:
+
+      22 zuordenbare Ladungen:  494,6 kWh Wallbox gegen 502,4 kWh BMW, −1,58 %
+       7 Ladungen nur Wallbox:   59,4 kWh, die in BMWs Ladeverlauf fehlen
+
+  **Die Abweichung war das schwächere Ergebnis.** Über 494 kWh hinweg lagen 20 der 22 Ladungen zwischen −1,44 % und −1,63 % — quer über Ladungen von 2,7 bis 56 kWh. Ein Faktor, der sich nicht ändert, sagt bei der einzelnen Ladung nichts; er bestätigt nur, dass BMWs `energyConsumedFromPowerGridKwh` keine Netzmessung ist.
+
+  Entfernt wurden `lib/keba.py`, der Endpunkt `/api/wallbox-comparison`, der Hintergrund-Thread, die Tabelle `wallbox_sessions` samt Zugriffsfunktionen, die Kennzeichnung im Ladeverlauf und die drei Einstellungen `KEBA_HOST`, `KEBA_PORT` und `KEBA_POLL_MINUTES` — dazu 63 Tests, die nur dafür da waren.
+
+### Note
+**Bestehende Daten bleiben.** Die Tabelle `wallbox_sessions` wird nicht mehr angelegt und nicht mehr gelesen, eine vorhandene aber auch nicht gelöscht — auf der Produktivinstanz liegen 29 gemessene Sitzungen darin. Wer sie loswerden will, löscht die Tabelle selbst. `KEBA_HOST` in einer bestehenden `.env` wird schlicht ignoriert und kann entfallen; die Portfreigabe `7090:7090/udp` in der compose-Datei ebenso.
+
+**Ein Test hält den Ausbau fest.** Die Gefahr beim Entfernen ist nicht, zu viel zu löschen, sondern zu wenig: ein Aufruf im Frontend auf einen Endpunkt, den es nicht mehr gibt, ein Feld im Einstellungskatalog ohne Code dahinter. Nichts davon bricht einen bestehenden Test — es fällt erst im Betrieb auf, als Fehlermeldung in der Browserkonsole.
+
+**Was der Ausbau nicht wegnimmt:** Dass BMW in zwei Wochen sieben Ladungen mit zusammen 59,4 kWh nicht protokolliert hat, bleibt gemessen. Der Ladeverlauf ist unvollständiger, als er aussieht — die Bridge zeigt das jetzt nur nicht mehr an.
+
+## [1.32.1] - 2026-10-02
+### Fixed
+- **Die Karte „Fahrzeuge im BMW-Konto" war zu 97 % leer.** Gemessen am Livesystem: 2774 Pixel hoch für 84 Pixel Inhalt. CSS-Raster strecken ihre Kinder auf die Höhe der Zeile — die Karte bekam die Höhe der Konfigurationskarte daneben. Seit diese alle optionalen Einstellungen führt, sind das 2684 Pixel. Jede Karte ist jetzt so hoch wie ihr eigener Inhalt: 147 statt 2774 Pixel.
+- **Der Settings-Tab scrollte auf dem Handy quer** (#28). Auf 375 Pixel Fensterbreite war der Inhalt 542 Pixel breit. Rasterkinder schrumpfen nicht unter ihre min-content-Breite, solange `min-width` auf der Vorgabe steht — in der einspaltigen Darstellung bestimmte damit das breiteste Kind die Breite aller. Der Log-Kasten braucht 521 Pixel, die beiden Konfigurationskarten nur 181 und 242.
+
+  Im Log-Kasten kamen die 521 Pixel aus der Kopfzeile (Titel, Kopierknopf und vier Filterknöpfe ohne Umbruch) und aus Log-Zeilen, die nicht umbrechen. Beides bricht jetzt um.
+
+### Note
+**Der Querscroll ist älter als v1.32.0** — an der Produktivinstanz v1.31.0 nachgemessen. Die leere Karte gab es vorher auch, sie fiel nur kaum auf, solange die Nachbarkarte klein war.
+
+**Geprüft wurde durch Messen, nicht durch Hinsehen.** Die Höhen und Breiten oben stammen aus dem Browser; nach der Änderung sind es auf 375 Pixel genau 375 Pixel Inhaltsbreite und null zu breite Elemente.
+
 ## [1.32.0] - 2026-10-01
 ### Added
 - **Die optionalen Einstellungen stehen jetzt in der Konfigurationsseite.** Bisher zeigte der Editor nur, was in der `.env` **schon drinsteht** — und weil alle optionalen Einträge in der Vorlage auskommentiert sind, war keiner von ihnen über die Oberfläche erreichbar. Wer die Keba-Wallbox einschalten oder `BATTERY_NOMINAL_KWH` setzen wollte, musste an die Datei im Container.
