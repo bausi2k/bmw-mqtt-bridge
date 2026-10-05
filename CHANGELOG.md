@@ -10,6 +10,35 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 > Die Historie beginnt mit v1.8.0. Ältere Einträge betreffen überwiegend interne
 > Umbauten ohne Auswirkung auf den Betrieb der Bridge.
 
+## [1.36.1] - 2026-10-05
+### Fixed
+- **Die Verarbeitung öffnete für jede Nachricht eine eigene SQLite-Verbindung.** Die Zeitmessung aus v1.36.0 hat es am Livesystem sofort gezeigt, über 157 Nachrichten:
+
+                            min     median        max
+      gesamt             0,3779     0,5342     1,4790
+      datenbank          0,3752     0,5312     1,4727     99,4 %
+      veroeffentlichung  0,0016     0,0026     0,0080      0,5 %
+      rest               0,0004     0,0006     0,0105      0,1 %
+
+  **531 von 534 Millisekunden je Nachricht gingen in die Datenbank** — für rund dreißig Zeilen. Der lokale Broker und die Protokollzeilen lagen zusammen bei 0,6 %; die Vermutung aus v1.35.0, `retain=True` oder Dockers Log-Treiber seien schuld, ist damit widerlegt.
+
+  Die Ursache ist das Öffnen und Schließen selbst: Im WAL-Modus läuft beim Schließen der **letzten** Verbindung ein Checkpoint, dessen Kosten an der Datenbankgröße hängen — nicht an der Nachricht. Genau das erklärt die Gleichmäßigkeit, die überhaupt erst aufgefallen war: 0,93 bis 0,97 Nachrichten je Sekunde, unabhängig davon, wie viele Unterschlüssel eine Nachricht trug.
+
+  Der heiße Pfad — `save_telemetry_many` und `save_location` — nutzt jetzt eine **dauerhafte Verbindung je Thread**. Auf einem lokalen SSD-Laufwerk gemessen, 33-MB-Datenbank: 3,2 ms gegen 0,4 ms, Faktor 9.
+
+### Note
+**Nur der heiße Pfad.** `_connect()` hat 28 Aufrufstellen, 27 davon schließen selbst. Deren Vertrag zu ändern wäre ein großer Eingriff für Aufrufe, die ohnehin nur auf Knopfdruck laufen. Als Nebeneffekt profitieren sie trotzdem: Solange der Schreiber eine Verbindung hält, ist eine schließende Leseverbindung nie mehr die letzte — der Checkpoint entfällt auch dort.
+
+**Erst die Entkopplung aus v1.35.0 macht das sauber möglich.** Vorher hätte die gehaltene Verbindung im Netzwerk-Thread von paho gelegen.
+
+**Je Thread eine eigene**, über `threading.local` — eine geteilte Verbindung verletzt `check_same_thread`. Der Datenbankpfad steckt im Schlüssel, weil die Testsuite ihn umbiegt; ohne das schriebe ein Test in die Datenbank eines anderen.
+
+**Eine geschlossene Verbindung wird ersetzt.** Sonst bliebe die Bridge nach einem einzigen Fehler dauerhaft stumm.
+
+**Die absolute Größenordnung ist noch offen.** Auf der NAS sind es 531 ms, auf einem lokalen Laufwerk 3,2 — das Speichervolume dort ist deutlich langsamer. Ob die Umstellung Faktor 9 oder mehr bringt, zeigt die nächste Messung mit derselben Sonde.
+
+**Ein bestehender Test wurde verschärft.** Er prüfte „eine Verbindung statt einer je Wert" — den Stand nach der ersten Optimierung. Jetzt prüft er, dass **gar keine** mehr geöffnet wird.
+
 ## [1.36.0] - 2026-10-05
 ### Added
 - **`/api/status` misst jetzt, wohin die Zeit je Nachricht geht.** Nach der Entkopplung in v1.35.0 steht die Verbindung auch unter Last — aber der Rückstau wird mit bemerkenswert **konstanten 0,93 bis 0,97 Nachrichten je Sekunde** abgebaut. Am Livesystem über dreieinhalb Minuten gemessen:
