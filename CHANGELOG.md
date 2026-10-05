@@ -10,6 +10,28 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 > Die Historie beginnt mit v1.8.0. Ältere Einträge betreffen überwiegend interne
 > Umbauten ohne Auswirkung auf den Betrieb der Bridge.
 
+## [1.36.0] - 2026-10-05
+### Added
+- **`/api/status` misst jetzt, wohin die Zeit je Nachricht geht.** Nach der Entkopplung in v1.35.0 steht die Verbindung auch unter Last — aber der Rückstau wird mit bemerkenswert **konstanten 0,93 bis 0,97 Nachrichten je Sekunde** abgebaut. Am Livesystem über dreieinhalb Minuten gemessen:
+
+      17:44:09   242 verarbeitet
+      17:47:40   438 verarbeitet     = 0,93 Nachrichten/s
+
+  Diese Gleichmäßigkeit ist der Hinweis: Rechenlast schwankt mit der Nachrichtengröße — eine Nachricht mit vier Unterschlüsseln kostet mehr als eine mit einem. Eine feste Sekunde sieht nach Warten aus, nicht nach Arbeit.
+
+  Gemessen werden die Gesamtdauer und die Anteile von Datenbank und Veröffentlichung; der **Rest** ergibt sich als Differenz und ist genau der Teil, über den bisher niemand etwas sagen konnte. Je Teil Minimum, Median und Maximum.
+
+### Note
+**Die naheliegenden Verdächtigen sind bereits ausgeschlossen.** SQLite läuft im WAL-Modus mit `synchronous=NORMAL`, `ui_config.json` wird seit v1.35.0 zwischengespeichert, die DEBUG-Formatierung ist mit `isEnabledFor` abgesichert. Bleiben die Veröffentlichungen an den lokalen Broker und das Schreiben der Protokollzeilen — beides unbelegt. Deshalb wird gemessen statt geraten.
+
+**Der Median, nicht der Durchschnitt.** Dieselbe Überlegung wie bei der Batteriegesundheit: Ein einzelner Ausreißer — ein WAL-Checkpoint, ein hängender Broker — zieht den Durchschnitt davon, ohne über den Normalfall etwas zu sagen. Das Maximum steht ohnehin daneben.
+
+**Gemessen wird mit `perf_counter`, nicht mit `time()`.** Eine Zeitumstellung oder ein NTP-Sprung erschiene sonst als Verarbeitungsdauer.
+
+**Die Sonde verändert nichts.** Wie die Zeitstempel-Sonde zählt sie nur mit; keine Entscheidung der Bridge hängt an ihren Zahlen. Schlägt die Messung selbst fehl, läuft die Verarbeitung weiter.
+
+**Mehr Threads wären die falsche Antwort.** Ein zweiter Arbeiter zerstörte die Reihenfolge, auf die sich die GPS-Paarung verlässt — und wenn die Zeit im Warten vergeht statt in der CPU, konkurrierten sie zusätzlich um dieselbe Schreibsperre. Erst messen, dann entscheiden.
+
 ## [1.35.0] - 2026-10-05
 ### Fixed
 - **Die Verbindung zu BMW brach während jedes Datenschubs ab — und was währenddessen gesendet wurde, war verloren.** Am 05.10.2026 an der Produktivinstanz gemessen, während das Fahrzeug ans Kabel ging:
