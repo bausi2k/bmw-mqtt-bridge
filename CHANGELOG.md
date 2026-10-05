@@ -10,6 +10,44 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 > Die Historie beginnt mit v1.8.0. Ältere Einträge betreffen überwiegend interne
 > Umbauten ohne Auswirkung auf den Betrieb der Bridge.
 
+## [1.35.0] - 2026-10-05
+### Fixed
+- **Die Verbindung zu BMW brach während jedes Datenschubs ab — und was währenddessen gesendet wurde, war verloren.** Am 05.10.2026 an der Produktivinstanz gemessen, während das Fahrzeug ans Kabel ging:
+
+      16:37:07  Keep alive timeout  ->  Reconnect  ->  Session present: False
+      16:38:08  Keep alive timeout  ->  Reconnect  ->  Session present: False
+      16:39:09  Keep alive timeout  ->  Reconnect  ->  Session present: False
+      16:40:11  Keep alive timeout  ->  Reconnect  ->  Session present: False
+      16:41:13  Keep alive timeout  ->  Reconnect  ->  Session present: False
+
+  Fünf Abbrüche in fünf Minuten, exakt im Takt der Keepalive-Frist von 30 Sekunden — und ausschließlich während des Schubs beim Anstecken. Im Leerlauf kein einziger: In zehn Minuten laufender Ladung kam keine einzige Nachricht.
+
+  **`Keep alive timeout` ist die Begründung des Brokers.** BMW hat uns hinausgeworfen, weil von uns kein Ping kam. Paho verarbeitet Netzwerkverkehr und Rückrufe im **selben** Thread; solange der Rückruf arbeitete, ging kein Ping hinaus. Je Nachricht waren das eine eigene SQLite-Verbindung, ein Lesezugriff auf `ui_config.json`, drei bis vier Veröffentlichungen an den lokalen Broker und bei `LOG_LEVEL=DEBUG` vier Protokollzeilen in Datei **und** stdout. Im Protokoll stand genau eine Nachricht je Sekunde.
+
+  Der Rückstau ließ sich an der Zeitstempel-Sonde ablesen: Verzug zwischen BMWs Messzeit und unserer Ankunft, Median **23,3 s**, Maximum **61,4 s**. Im September waren es 3 bis 10 Sekunden.
+
+  Weil `SessionExpiryInterval = 0` gesetzt ist, hält der Broker nichts zurück — bei jedem Reconnect stand `Session present: False`. Und weil BMW nach jedem Connect den vollen Fahrzeugzustand neu schickt, begann der Zyklus von vorn.
+
+  **Die Nachricht wird jetzt nur noch angenommen und weitergereicht.** Ein eigener Arbeits-Thread verarbeitet sie; der Netzwerk-Thread ist sofort wieder frei.
+
+### Changed
+- **`ui_config.json` wird zwischengespeichert** statt bei jeder eintreffenden Nachricht von der Platte gelesen. Eine Änderung wird an Änderungszeit und Größe erkannt und wirkt weiterhin sofort.
+- **Die Protokollausgaben je veröffentlichtem Topic sind abgesichert.** Die Formatierung auf 90 Zeichen lief bisher auch dann, wenn niemand sie las — bei einem Zustandsdump rund 200-mal.
+- **`/api/status` weist den Rückstau aus:** aktuelle Länge der Warteschlange, Hochwassermarke und Zahl verarbeiteter Nachrichten. Die Hochwassermarke ist die eigentliche Kennzahl — ein Rückstau entsteht in Schüben und ist im Augenblick der Abfrage meist schon abgebaut.
+
+### Note
+**`LOG_LEVEL=INFO` wäre keine Behebung gewesen.** DEBUG ist ein Diagnosewerkzeug; ausgerechnet beim Fehlersuchen darf die Verbindung nicht abreißen. Die Bridge muss bei jedem Protokollniveau tragen — darauf hat der Projektinhaber zu Recht bestanden.
+
+**Ein Arbeiter, kein Pool.** Die Reihenfolge muss erhalten bleiben: Die GPS-Paarung verlässt sich darauf, dass Breite und Länge in der Reihenfolge ihres Eintreffens zusammenfinden. Bei zwei Arbeitern könnte die Länge vor der Breite landen und ein gültiger Punkt verworfen werden.
+
+**Die Ankunftszeit wird im Netzwerk-Thread genommen**, nicht im Arbeiter. Sonst führte die Behebung dazu, dass die Sonde künftig die Verarbeitungszeit misst — und damit ausgerechnet den Rückstau nicht mehr, den sie aufgedeckt hat. Dasselbe gilt für den Zeitstempel in `telemetry_history` und für den Watchdog.
+
+**Die Warteschlange ist unbegrenzt.** Eine begrenzte müsste beim Überlaufen verwerfen, und Verwerfen ist genau das, was hier behoben wird. Stattdessen wird ein Rückstau ab 100 wartenden Nachrichten einmalig gemeldet und seine Hochwassermarke ausgewiesen.
+
+**Nicht belegbar ist, welche Werte verlorengingen.** Dafür bräuchte es eine zweite Messquelle. Dass der Mechanismus griff, ist belegt; die Menge nicht.
+
+**Offen bleibt die Sitzungswiederaufnahme.** Ob BMWs Broker `SessionExpiryInterval > 0` zulässt und QoS-1-Nachrichten nach einer kurzen Trennung nachliefert, braucht eine eigene Messung — ein Auffangnetz für den Fall, dass es doch einmal reißt.
+
 ## [1.34.0] - 2026-10-05
 ### Added
 - **Der Verlauf der Batteriegesundheit zeigt jetzt Werte beim Überfahren.** Das Diagramm zeichnete eine Linie und sonst nichts; alle Zahlen dahinter lagen bereits vor, sichtbar waren sie nur in der Tabelle darunter. Eine Führungslinie, ein Punkt auf der Kurve und ein Kästchen mit Datum, Gesundheit, nutzbarer Energie, der Spanne dieses Tages und der Zahl der Messungen:
