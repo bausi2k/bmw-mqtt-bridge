@@ -1,4 +1,4 @@
-# BMW CarData Streaming MQTT Bridge (v1.36.1)
+# BMW CarData Streaming MQTT Bridge (v1.38.0)
 
 [![Buy Me A Coffee](https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png)](https://www.buymeacoffee.com/bausi2k)
 [![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
@@ -34,7 +34,7 @@ It handles the entire OAuth2 authentication lifecycle, including automatic token
 * **Outage Backoff:** When BMW's REST API reports a temporary fault, further calls pause instead of piling up failed attempts — 5, 15, 30 then 60 minutes while it lasts, cleared by the first successful call. A **„Try anyway“** button overrides it for a single attempt. The pause is stored in the database, so a restart does not lift it. The live MQTT stream is unaffected.
 * **Dockerized:** Available as a pre-built Multi-Arch Image (amd64/arm64) via GitHub Container Registry.
 * **Dynamic Topics:** Flattens complex JSON data into clean MQTT topics (e.g., `home/bmw/live/vehicle/mileage`).
-* **Multi Car Mode:** Set `LOCAL_MQTT_APPEND_VIN=true` in your `.env` to append each vehicle's VIN to the base topic (e.g. `home/bmw/live/WBA…/vehicle/mileage`). This keeps several cars apart on a single broker.
+* **Multi Car Mode:** Set `LOCAL_MQTT_APPEND_VIN=true` in your `.env` to append each vehicle's VIN to the base topic (e.g. `home/bmw/live/WBA…/vehicle/mileage`). This keeps several cars apart on a single broker. Since v1.37.0 this also needs `MQTT_SUBSCRIBE_WILDCARD=true`: the bridge subscribes to its own vehicle only by default, because none of the streamed tables carries a VIN — with two cars the dashboard, the telemetry archive and especially the location trail would mix them.
 
 ### ⚠️ Acknowledgements & Credits
 
@@ -209,7 +209,7 @@ Der Service kümmert sich vollautomatisch um die OAuth2-Authentifizierung und da
 * **Sperre bei Störungen:** Meldet BMWs REST-API eine vorübergehende Störung, pausieren weitere Abrufe, statt sich als Fehlversuche zu häufen — 5, 15, 30, dann 60 Minuten, solange sie anhält; der erste erfolgreiche Abruf hebt sie auf. Ein Knopf **„Trotzdem abfragen“** umgeht sie für genau einen Versuch. Die Sperre liegt in der Datenbank, ein Neustart hebt sie also nicht auf. Der Live-Datenstrom über MQTT ist nicht betroffen.
 * **Docker:** Verfügbar als vorgefertigtes Multi-Arch Image (amd64/arm64) über die GitHub Container Registry.
 * **Strukturierte Daten:** Wandelt komplexe JSON-Objekte in saubere MQTT-Topics um (z.B. `home/bmw/live/vehicle/mileage`).
-* **Multi Car Mode:** Mit `LOCAL_MQTT_APPEND_VIN=true` in der `.env` wird die VIN des jeweiligen Fahrzeugs an das Basis-Topic angehängt (z.B. `home/bmw/live/WBA…/vehicle/mileage`). So lassen sich mehrere Autos auf einem Broker sauber trennen.
+* **Multi Car Mode:** Mit `LOCAL_MQTT_APPEND_VIN=true` in der `.env` wird die VIN des jeweiligen Fahrzeugs an das Basis-Topic angehängt (z.B. `home/bmw/live/WBA…/vehicle/mileage`). So lassen sich mehrere Autos auf einem Broker sauber trennen. Seit v1.37.0 braucht es dafür zusätzlich `MQTT_SUBSCRIBE_WILDCARD=true`: Die Bridge abonniert standardmäßig nur ihr eigenes Fahrzeug, weil keine der gestreamten Tabellen eine VIN führt — bei zwei Autos vermischten sich sonst Dashboard, Telemetrieverlauf und vor allem der Standortverlauf.
 
 ### ⚠️ Danksagung & Credits
 
