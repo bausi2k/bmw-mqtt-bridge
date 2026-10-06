@@ -10,6 +10,68 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 > Die Historie beginnt mit v1.8.0. Ältere Einträge betreffen überwiegend interne
 > Umbauten ohne Auswirkung auf den Betrieb der Bridge.
 
+## [1.38.0] - 2026-10-06
+### Fixed
+- **Die Ladeleistung blieb nach dem Abstecken stehen.** Am Archiv nachgewiesen — BMW verhält sich je nach Art des Ladeendes unterschiedlich:
+
+      05.10. 19:23:37   1450 W
+      05.10. 19:23:48      0 W     Ladung gestoppt, Stecker steckt weiter
+                                   → BMW schickt eine saubere 0
+
+      06.10. 07:10:40  10900 W     letzter Wert
+      06.10. 07:10:43   chargingPort.status → DISCONNECTED
+                                   → BMW schickt nichts mehr
+
+  Beim Abstecken hört BMW einfach auf, den Schlüssel zu senden. Die Kachel zeigte daraufhin stundenlang 10,9 kW an einem Auto, das längst nicht mehr am Kabel hing.
+
+  Ein Datenverlust auf unserer Seite scheidet aus: Seit v1.36.1 steht die Verbindung durchgehend, und im selben Zeitraum kamen 220 andere Nachrichten an.
+
+### Added
+- **`/api/telemetry` kennzeichnet veraltete Werte** mit einem Feld `veraltet`, das den Grund im Klartext nennt. Die Oberfläche zeigt dann einen Strich und den Grund als Hinweis.
+
+### Note
+**Der Wert wird nicht verändert, nur gekennzeichnet.** Eine erfundene 0 sähe aus wie eine Messung. Dieselbe Linie wie bei der Nennkapazität, die nicht geraten wird, und bei der AC/DC-Unterscheidung, die als Ableitung ausgewiesen ist. Wer `/api/telemetry` liest, bekommt weiterhin den letzten echten Messwert — nur eben mit dem Vermerk, dass er nichts über jetzt aussagt.
+
+**Es wird nicht geraten.** Fehlt `chargingPort.status`, wird nichts gekennzeichnet. Keine Aussage ist keine Aussage.
+
+**Gekennzeichnet wird im Backend.** Die Kachel findet ihren Wert auf zwei Wegen — über einen konfigurierten Schlüssel oder über einen Rückfall auf Pfadenden. Beide müssten die Regel sonst kennen, und der zweite wäre beim nächsten Umbau vergessen. Jetzt steht sie einmal und gilt auch für jeden, der den Endpunkt direkt liest.
+
+**Die MQTT-Weitergabe bleibt unverändert.** Das Topic ist ein getreues Abbild dessen, was BMW sendet; eine synthetische 0 zu veröffentlichen bräche diesen Vertrag. Für Hausautomatisierungen ist `chargingPort.status` der verlässliche Anhaltspunkt.
+
+## [1.37.0] - 2026-10-06
+### Fixed
+- **41 % aller empfangenen Nachrichten waren Dubletten.** Am Livesystem über zwölf Stunden gemessen:
+
+      travelledDistance        155 Zeilen,  77 Wiederholungen (50 %)
+      charging.status          119 Zeilen,  43 Wiederholungen (36 %)
+      maxEnergy                127 Zeilen,  52 Wiederholungen (41 %)
+      smeEnergyDelta           112 Zeilen,  38 Wiederholungen (34 %)
+      cabin.door.status        125 Zeilen,  52 Wiederholungen (42 %)
+
+  Nicht der eigene Code: **Keine einzige** Zeile teilte sich einen Zeitstempel — es waren zwei echte Nachrichten im Millisekundenabstand.
+
+  Die Bridge abonnierte **beides**, `GCID/<VIN>` und `GCID/+`. Das Pluszeichen deckt genau eine Ebene ab, `GCID/+` schließt `GCID/<VIN>` also vollständig ein; der Broker liefert jede Nachricht auf das VIN-Topic daraufhin zweimal. Gemessen wurden 220 Nachrichten in 75 Minuten, **alle** auf dem VIN-Topic — das Wildcard-Abo brachte bei einem Fahrzeug nichts Zusätzliches.
+
+  Abonniert wird jetzt entweder das eine oder das andere, nie beides. Das spart 41 % aller Datenbankzeilen, aller lokalen Veröffentlichungen und aller Verarbeitungszeit.
+
+### Added
+- **`MQTT_SUBSCRIBE_WILDCARD`** (Vorgabe `false`). Eingeschaltet empfängt die Bridge **alle** Fahrzeuge des BMW-Kontos statt nur das konfigurierte — nötig, wenn mehrere Autos zusammen mit `LOCAL_MQTT_APPEND_VIN` auf den lokalen Broker gespiegelt werden sollen.
+
+### ⚠️ Verhaltensänderung
+**Wer heute mehrere Fahrzeuge über das Wildcard-Abo empfängt, verliert alle außer dem konfigurierten**, bis `MQTT_SUBSCRIBE_WILDCARD=true` gesetzt ist. Bei einem einzigen Fahrzeug ändert sich nichts außer den verschwundenen Dubletten.
+
+### Note
+**Warum die Vorgabe „nur VIN" lautet.** Von den gestreamten Tabellen führt keine eine VIN-Spalte:
+
+    telemetry_history        id, timestamp, key, value          VIN: nein
+    location_history         id, timestamp, lat, lon, heading   VIN: nein
+    battery_health_history   day, samples, p95_kwh, …           VIN: nein
+    charging_sessions        vin, start_time, payload           VIN: ja
+
+Nur der Ladeverlauf trennt die Fahrzeuge, und der kommt über REST statt aus dem Datenstrom. Mit zwei Autos mischte sich alles andere — beim Standortverlauf spränge die Spur zwischen beiden hin und her. Die Vorgabe macht die Datenbank damit ehrlich: Sie behauptet Einfahrzeugbetrieb und bekommt auch nur ein Fahrzeug.
+
+**Echte Mehrfahrzeug-Unterstützung** bräuchte eine VIN-Spalte in diesen drei Tabellen. Das ist eine Datenbankmigration und steht als eigenes Issue aus; sie würde diese Einstellung irgendwann überflüssig machen.
+
 ## [1.36.1] - 2026-10-05
 ### Fixed
 - **Die Verarbeitung öffnete für jede Nachricht eine eigene SQLite-Verbindung.** Die Zeitmessung aus v1.36.0 hat es am Livesystem sofort gezeigt, über 157 Nachrichten:
