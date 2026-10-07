@@ -10,6 +10,44 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 > Die Historie beginnt mit v1.8.0. Ältere Einträge betreffen überwiegend interne
 > Umbauten ohne Auswirkung auf den Betrieb der Bridge.
 
+## [1.40.2] - 2026-10-07
+### Security
+- **urllib3 auf 2.8.0 angehoben.** Versionen ab 2.6.2 und unter 2.8.0 können beim Verarbeiten komprimierter Antworten in eine Endlosschleife geraten (*Chunked Deflate streaming can enter an infinite loop*, Schweregrad mittel). Die Bibliothek steckt unter `requests` und damit unter jedem Aufruf der BMW-REST-Schnittstelle.
+
+### Changed
+- Fünf weitere Aktualisierungen aus demselben Dependabot-Bündel: `charset-normalizer` 3.5.2, `idna` 3.20, `python-dotenv` 1.2.4, `fastapi` 0.142.2, `uvicorn` 0.54.0.
+
+### Note
+**Zweistufig geprüft, bevor empfohlen.** Die Testsuite lief in einer wegwerfbaren Umgebung mit genau diesen Versionen — 1034 Tests grün, beide Läufer.
+
+Das allein genügte hier nicht: Die Tests rufen die Endpunkte direkt auf, der Server läuft dabei nie. Ein Bruch zwischen FastAPI 0.142 und Uvicorn 0.54 wäre unbemerkt geblieben. Deshalb zusätzlich ein Rauchtest mit echtem Uvicorn gegen sechs Endpunkte, alle HTTP 200 mit gültigem JSON — ohne BMW-Verbindung und auf einer temporären Datenbank.
+
+## [1.40.1] - 2026-10-07
+### Fixed
+- **Die Kachel „Charging Power" zeigte ohne konfigurierten Schlüssel immer einen Strich.** Ihre Rückfallsuche fragte nach Schlüsseln mit **Schrägstrichen**:
+
+      'vehicle/powertrain/electric/battery/charging/power/value'
+      'charging/power/value'
+      'chargingPower'
+
+  Im Telemetriebestand stehen sie aber **punktiert** (`vehicle.powertrain.electric.battery.charging.power`). Die Suche vergleicht auf das Ende — ein Schlüssel mit Schrägstrichen kann darauf nie passen. Im Browser gegengeprüft:
+
+      findTelemetryValue(['batteryManagement/header'])  ->  null
+      findTelemetryValue(['batteryManagement.header'])  ->  64
+
+  Auch der dritte Eintrag traf nicht: BMWs Schlüssel endet auf `charging.power`, nicht auf `chargingPower`. Die Schrägstriche stammen aus den MQTT-Topics, wo sie richtig sind.
+
+  Wer den Schlüssel ausdrücklich konfiguriert hat, merkte davon nichts — jede Neuinstallation sah die Ladeleistung nie.
+
+- **Dabei kam ein zweiter Fehler im selben Pfad zum Vorschein: die Einheit war falsch.** Der Rückfall schrieb fest `kW` über den Wert, BMW sendet aber **Watt** — angezeigt worden wäre „10.900 kW" für 10.900 W, das Tausendfache. Sichtbar war das nie, weil der Pfad nie lief. Genommen wird jetzt die Einheit aus dem Eintrag selbst, wie es der Weg über den konfigurierten Schlüssel ohnehin tut; zum Umrechnen gibt es `custom1_multiplier` und `custom1_unit`.
+
+### Note
+**Ein Test prüft alle Nachschlagestellen**, nicht nur die beiden gefundenen. Beide waren still kaputt — kein Fehler, keine Meldung, nur ein Strich, wo ein Wert hätte stehen sollen. Diese Art Fehler findet man nicht durch Hinsehen, und der nächste käme genauso.
+
+**Die zweite Fundstelle war harmlos und hätte es nicht bleiben müssen:** `['hvSoc', 'batteryManagement/hvSoc']` funktionierte, weil der erste Schlüssel passt. Der zweite war totes Gewicht, das beim nächsten Umbau zur Falle geworden wäre.
+
+**Gesucht wird auf das Ende des Schlüssels**, weil dort die Bedeutung steckt und BMW die Präfixe schon mehrfach umgestellt hat — dieselbe Überlegung wie in `vehicle_profile.py` und `battery_health.py`.
+
 ## [1.40.0] - 2026-10-06
 ### Added
 - **Beim Abstecken geht eine 0 für die Ladeleistung an den lokalen Broker.** BMW sendet dort keinen Abschlusswert — mit `retain=true` blieb im Topic der letzte gemessene Wert stehen, an der Produktivinstanz 10900 W an einem Auto, das seit Stunden nicht am Kabel hing. Eine Hausautomatisierung liest daraus, es werde geladen.
