@@ -10,6 +10,32 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 > Die Historie beginnt mit v1.8.0. Ältere Einträge betreffen überwiegend interne
 > Umbauten ohne Auswirkung auf den Betrieb der Bridge.
 
+## [1.41.0] - 2026-10-07
+### Added
+- **Dublettenmessung für #35.** `/api/status` weist unter `mqtt_verarbeitung` zwei neue Zähler aus: `mit_dup_flag` zählt Nachrichten, die der Broker als Wiederholung markiert, `inhaltsgleich` zählt Nutzlasten, die innerhalb von 60 Sekunden ein zweites Mal ankommen. Nebeneinander beantworten sie die offene Frage: Veröffentlicht BMW zweimal, oder wiederholt der Broker?
+
+### Note
+**Was die Zähler unterscheiden.** Rund 42 % der Nachrichten kommen doppelt. Am 07.10.2026 war das im Telemetriebestand direkt ablesbar — fast jeder Zeitstempel steht zweimal da, null bis eine Sekunde auseinander. Zwei Erklärungen führen zu verschiedenen Schlüssen: Bei hohem `mit_dup_flag` wiederholt der Broker, und es ist eine QoS-1-Frage auf unserer Seite. Bei `mit_dup_flag` nahe null und hohem `inhaltsgleich` veröffentlicht BMW zweimal, und nur eine lokale Entdopplung könnte helfen.
+
+**Zwei frühere Vermutungen sind bereits widerlegt** und kehren nicht zurück: überlappende Abonnements (#32 — seit v1.37.0 gibt es nur noch eines, die Quote blieb bei 42 %) und doppeltes Schreiben auf unserer Seite (`save_telemetry_many` hat genau eine Aufrufstelle).
+
+**Gezählt wird im Arbeiter, nicht auf dem Netzwerk-Thread.** Das DUP-Flag ist nur in `_on_message` lesbar, dort steht aber ausschließlich ein Attributzugriff; verglichen und gezählt wird nach dem Parsen. Das ist die Lektion aus #30, nicht Geschmack: Vor v1.35.0 kostete `_on_message` 534 ms je Nachricht, und die Verbindung brach bei jedem Datenschub ab.
+
+Das Fenster von 60 Sekunden ist absichtlich kurz. Ein Wert, der eine Stunde später unverändert wiederkommt, ist keine Dublette, sondern ein Lebenszeichen — genau das trägt die Altersanzeige aus v1.39.0.
+
+**Noch keine Entdopplung.** Dies ist eine Messung. Ob überhaupt entdoppelt wird, entscheidet das Ergebnis.
+
+## [1.40.3] - 2026-10-07
+### Fixed
+- **Der Ladeverlauf meldet sich jetzt, während er lädt.** Der erste Aufruf an einem Tag zeigte zwölf Sekunden lang eine leere Seite: keine Tabelle, keine Zusammenfassung, kein Hinweis. Am Produktivsystem gemessen (07.10.2026) — warmer Abruf 175 ms, kalter Abruf 11 976 ms über acht BMW-Seiten. Der Serverzwischenspeicher hält 24 Stunden, der erste Klick des Tages ist damit immer der kalte.
+
+### Note
+**Der Aktualisieren-Knopf war nie die Lösung, nur das einzige Lebenszeichen.** `fetchChargingHistory` lässt einen zweiten Aufruf auf den laufenden warten (`if (chargingFetchLaeuft) return chargingFetchLaeuft`). Wer nach zwei Sekunden auf Aktualisieren drückte, löste keinen neuen Abruf aus — er bekam zum ersten Mal eine Rückmeldung, und kurz darauf das Ergebnis des ersten Abrufs. Deshalb sah es so aus, als würde erst der Knopf die Daten holen.
+
+Der Platzhalter ersetzt bewusst **keine** bereits gezeichnete Tabelle. Beim Auffrischen bleiben die alten Daten stehen; sie zwölf Sekunden lang durch einen Hinweis zu ersetzen, wäre ein neuer Fehler anstelle des alten. Abgeräumt wird im `finally`, nicht beim Zeichnen — die drei Rückgabepfade bei `!res.ok` zeichnen nie, und ein stehengebliebenes „wird geholt" wäre eine Lüge.
+
+**Offen und getrennt erfasst:** Dass der kalte Abruf acht statt ein bis zwei Seiten kostet, liegt an acht dauerhaft offenen Ladevorgängen am Rand des 45-Tage-Fensters (ältester vom 24.08.2026). Sie ziehen das Abruffenster täglich auf volle Breite und verbrauchen 8 von 50 Tagesabrufen. Das ist ein eigener Befund und nicht Teil dieser Korrektur.
+
 ## [1.40.2] - 2026-10-07
 ### Security
 - **urllib3 auf 2.8.0 angehoben.** Versionen ab 2.6.2 und unter 2.8.0 können beim Verarbeiten komprimierter Antworten in eine Endlosschleife geraten (*Chunked Deflate streaming can enter an infinite loop*, Schweregrad mittel). Die Bibliothek steckt unter `requests` und damit unter jedem Aufruf der BMW-REST-Schnittstelle.
