@@ -10,6 +10,65 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 > Die Historie beginnt mit v1.8.0. Ältere Einträge betreffen überwiegend interne
 > Umbauten ohne Auswirkung auf den Betrieb der Bridge.
 
+## [1.40.0] - 2026-10-06
+### Added
+- **Beim Abstecken geht eine 0 für die Ladeleistung an den lokalen Broker.** BMW sendet dort keinen Abschlusswert — mit `retain=true` blieb im Topic der letzte gemessene Wert stehen, an der Produktivinstanz 10900 W an einem Auto, das seit Stunden nicht am Kabel hing. Eine Hausautomatisierung liest daraus, es werde geladen.
+
+  Veröffentlicht wird auf
+
+      <basis>/vehicle/powertrain/electric/battery/charging/power          (JSON)
+      <basis>/vehicle/powertrain/electric/battery/charging/power/value    0
+
+### ⚠️ Eine bewusste Abweichung vom bisherigen Vertrag
+Bisher war **jedes** Topic ein getreues Abbild dessen, was BMW sendet. Hier geht etwas hinaus, das BMW nicht geschickt hat. Zwei Auflagen halten das im Rahmen:
+
+**Als Ableitung gekennzeichnet.** Die JSON-Nutzlast trägt `"abgeleitet": true` samt Begründung im Klartext. Wer das Topic liest, kann Messung und Schluss unterscheiden — dieselbe Linie wie bei der AC/DC-Erkennung im Ladeverlauf.
+
+**Eine benannte Regel, kein Freibrief.** Genau ein Wert unter genau einer Bedingung, nicht „wir denken uns Werte aus".
+
+Das Dashboard bleibt bei der Kennzeichnung aus v1.38.0: Dort wird der echte Messwert behalten und als veraltet markiert, nicht durch eine 0 ersetzt. Die beiden Wege unterscheiden sich mit Absicht — ein Mensch kann einen Hinweis lesen, eine Hausautomatisierung braucht eine Zahl.
+
+### Note
+**Nicht „einmalig beim Wechsel".** Das hinterließe einen Fall, der sich nie heilt: Startet der Container, während das Auto abgesteckt ist, tritt kein Wechsel ein, und im Topic stünde durch `retain` weiter der alte Wert. Veröffentlicht wird deshalb, sobald ein Zustand `DISCONNECTED` gesehen wird und noch keine 0 hinausging. BMW schickt den Portzustand in jedem Zustandsdump mit — der Fall heilt sich beim ersten Dump nach dem Start.
+
+**Wiederholt wird nichts.** Ein Merker überlebt die einzelne Nachricht; sonst ginge bei jedem Dump eine neue 0 hinaus.
+
+**Ein unbekannter Portzustand ändert nichts** und setzt den Merker auch nicht zurück. Nur `CONNECTED` macht die Regel wieder scharf.
+
+**Reine Verbrenner sind nicht betroffen.** Ohne je gesehene Ladeleistung gibt es nichts zu nullen.
+
+## [1.39.0] - 2026-10-06
+### Added
+- **Die Kopfzeile nennt jetzt, wie alt die Daten sind.** Am 06.10.2026 zeigte das Dashboard einen Ladestand von 64 %, verriegelte Türen und 49.529 km — alles von 07:56 und damit sechs Stunden alt, ohne dass man es sehen konnte. Der Statuspunkt stand auf grün, und das stimmte auch: Die Verbindung stand, das Auto schwieg.
+
+  Neben den beiden Verbindungspunkten steht nun „BMW-Daten vor 6 h", mit dem genauen Zeitpunkt als Hinweis. `/api/status` liefert dafür `last_bmw_message` und `seconds_since_bmw_message`.
+
+### Fixed
+- **Die Statuszeile brach auf dem Handy aus dem Bild.** Mit dem dritten Element schob sie den Menüknopf hinaus und schnitt „BMW Stream" links ab — gemessen 385 Pixel Inhalt bei 375 Pixel Fenster. Sie bricht jetzt um.
+
+### Berichtigung zu v1.37.0
+**Die dort behauptete Ersparnis von 41 % tritt nicht ein.** Nach dem Deploy nachgemessen: Es wird nur noch ein Topic abonniert — im Protokoll steht eine einzige `Subscribed to topic`-Zeile —, und die Dublettenquote liegt weiterhin bei 42 %.
+
+```
+13:57:19.261  SECURED
+13:57:19.433  SECURED   +0,172 s
+13:57:40.059  SECURED
+13:57:40.308  SECURED   +0,249 s
+```
+
+Alle 137 Nachrichten kamen auf **einem** Topic. Die Dubletten entstehen also nicht durch überlappende Abonnements; BMW oder dessen Broker liefert jeden Zustandsdump zweimal, rund 0,2 Sekunden versetzt.
+
+Die Änderung aus v1.37.0 bleibt richtig — zwei überlappende Abonnements sind per Konstruktion redundant —, aber die Begründung war falsch. Der Fehler lag im Schluss: aus zwei plausiblen Beobachtungen wurde eine Ursache gemacht, ohne sie zu prüfen. Woher die Dubletten wirklich kommen, entscheidet eine Messung des DUP-Flags; das steht als eigenes Issue aus.
+
+### Note
+**Stille ist der Normalfall, kein Fehler.** Am Archiv über drei Tage gemessen gab es 18 Phasen über einer halben Stunde — die längste 12,8 Stunden über Nacht, eine von 7,2 Stunden an einem Bürotag, Median 0,9 Stunden. Die Anzeige nennt deshalb nur das Alter und sieht nicht nach Störung aus. Hervorgehoben wird erst jenseits von drei Stunden, dort schlägt auch der Watchdog an.
+
+**Verbindung und Datenfluss sind zweierlei.** Die Altersangabe ersetzt den Verbindungspunkt nicht, sie tritt daneben: Grün heißt „wir sind verbunden", nicht „das Auto meldet sich".
+
+**Gerechnet wird auf dem Server.** Die Uhr des Browsers kann abweichen, und die Differenz wäre dann frei erfunden.
+
+**Die Angabe untertreibt nicht.** 90 Sekunden werden zu „vor 2 min", nicht zu „vor 1 min" — Daten älter zu nennen als sie sind, ist der harmlosere Fehler.
+
 ## [1.38.0] - 2026-10-06
 ### Fixed
 - **Die Ladeleistung blieb nach dem Abstecken stehen.** Am Archiv nachgewiesen — BMW verhält sich je nach Art des Ladeendes unterschiedlich:
@@ -53,6 +112,8 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
   Die Bridge abonnierte **beides**, `GCID/<VIN>` und `GCID/+`. Das Pluszeichen deckt genau eine Ebene ab, `GCID/+` schließt `GCID/<VIN>` also vollständig ein; der Broker liefert jede Nachricht auf das VIN-Topic daraufhin zweimal. Gemessen wurden 220 Nachrichten in 75 Minuten, **alle** auf dem VIN-Topic — das Wildcard-Abo brachte bei einem Fahrzeug nichts Zusätzliches.
 
   Abonniert wird jetzt entweder das eine oder das andere, nie beides. Das spart 41 % aller Datenbankzeilen, aller lokalen Veröffentlichungen und aller Verarbeitungszeit.
+
+  > **Berichtigt in v1.39.0:** Diese Ersparnis tritt **nicht** ein. Nach dem Deploy nachgemessen lag die Dublettenquote weiterhin bei 42 %, obwohl nur noch ein Topic abonniert wird. Die Änderung bleibt richtig — zwei überlappende Abonnements sind per Konstruktion redundant —, aber sie war nicht die Ursache der Dubletten. Siehe den Abschnitt „Berichtigung zu v1.37.0" unter v1.39.0.
 
 ### Added
 - **`MQTT_SUBSCRIBE_WILDCARD`** (Vorgabe `false`). Eingeschaltet empfängt die Bridge **alle** Fahrzeuge des BMW-Kontos statt nur das konfigurierte — nötig, wenn mehrere Autos zusammen mit `LOCAL_MQTT_APPEND_VIN` auf den lokalen Broker gespiegelt werden sollen.
