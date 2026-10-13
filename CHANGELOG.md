@@ -5,10 +5,62 @@
 Alle nennenswerten Änderungen an diesem Projekt werden in dieser Datei dokumentiert.
 
 Das Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/1.0.0/),
-und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
+und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/), mit einer Abweichung: Die erste Stelle markiert zusätzlich Meilensteine. Ein Hauptversionssprung bedeutet hier also nicht zwingend, dass etwas Bestehendes nicht mehr funktioniert — jeder Eintrag sagt ausdrücklich, ob er bricht.
 
 > Die Historie beginnt mit v1.8.0. Ältere Einträge betreffen überwiegend interne
 > Umbauten ohne Auswirkung auf den Betrieb der Bridge.
+
+## [2.0.0] - 2026-10-13 — Die Oberfläche nach den Apple Human Interface Guidelines
+
+**Kein Bruch.** Keine Konfigurationsänderung, keine neuen Pflichtfelder in der `.env`, keine geänderten MQTT-Topics, keine Datenbankmigration. Wer von v1.41.0 kommt, deployt und merkt beim Betrieb nichts außer einer Oberfläche, die sich an die Systemeinstellungen hält. Die erste Stelle steigt als Meilenstein, nicht als Warnung.
+
+Grundlage ist ein Durchgang durch die [Human Interface Guidelines](https://developer.apple.com/design/human-interface-guidelines) am 13.10.2026, gemessen an der laufenden Instanz statt geschätzt.
+
+### Fixed
+- **Trefferflächen auf 44 × 44 pt.** Auf 375 px gemessen lagen elf von zwölf Bedienelementen darunter — das Zahnrad an den Karten mit 20 × 26 bei weniger als der halben nötigen Breite, das Burger-Menü bei 26 × 18. Vergrößert wird die Fläche, nicht der Knopf: Ein durchsichtiges `::after`-Rechteck nimmt die Berührungen an, die Gestaltung bleibt unverändert.
+- **Textkontrast auf 4,5:1 in beiden Themes.** Je vier Verstöße, immer dieselben zwei Klassen. `.label` trägt sämtliche Beschriftungen — MODEL, VIN, UPTIME und weitere; klein und kontrastschwach zugleich ist die ungünstigste Kombination.
+- **`<html lang="de">` statt `lang="en"`.** Die Oberfläche ist überwiegend deutsch; VoiceOver wählt die Stimme nach diesem Attribut und las „Ladeverlauf" mit englischer Aussprache.
+- **`latest` zeigte auf die ältere Version.** Nach dem Doppel-Release vom 07.10.2026 lief auf der NAS weiterhin v1.40.3, obwohl `docker compose pull` sauber durchlief: In der Registry waren `latest` und `1.40.3` derselbe Digest. Beide Tag-Builds hatten `latest` geschrieben, der längere Lauf zuletzt — also gewann die ältere Version.
+
+Gemessen, vorher und nachher:
+
+| Bedienelement | Knopf | Trefferfläche |
+|---|---|---|
+| Burger-Menü | 26 × 18 | 44 × 44 |
+| Zahnrad (6×) | 20 × 26 | 44 × 44 |
+| Karten-Konfiguration | 33 × 40 | 44 × 44 |
+| Theme-Umschalter | 38 × 38 | 44 × 44 |
+
+| Textfarbe | vorher | nachher |
+|---|---|---|
+| `.label` dunkel | 3,99:1 `#707070` | 4,54:1 `#797979` |
+| `.label` hell | 3,21:1 `#888895` | 4,54:1 `#6F6F7C` |
+| `.btn-primary` | 3,44:1 / 4,02:1 | 4,53:1 |
+
+### Added
+- **Vorlesbare Namen für alle Bedienelemente.** Sechs sichtbare Knöpfe trugen ein Emoji als einzigen Inhalt und weder `aria-label` noch `title`. Auf der Übersichtsseite stehen sechs davon untereinander, alle gleich benannt. Jetzt heißen sie „Kachel Ladestand einstellen", „Kachel Kilometerstand einstellen" und so fort — ein Test hält fest, dass die Namen verschieden sind.
+- **Das Theme folgt dem System auch nach dem Laden.** Wechselt macOS oder iOS, während das Dashboard offen ist, zieht es mit. Und wer den Umschalter auf genau das stellt, was das System ohnehin sagt, löst seine eigene Festlegung wieder auf.
+- **`prefers-reduced-motion` wird beachtet.** Im CSS standen 50 Übergänge und Animationen, keine einzige Abfrage.
+- **`color-scheme` für beide Themes.** Ohne diese Angabe zeichnet der Browser Bildlaufleisten und native Bedienelemente im hellen Standard — betroffen waren die beiden `datetime-local`-Felder der Ladeverlauf-Filterleiste.
+- **Sichere Bereiche und Homescreen-Symbol.** `viewport-fit=cover` samt `env(safe-area-inset-*)` und ein `apple-touch-icon`.
+
+### Note
+**`--primary` blieb unangetastet.** Der naheliegende Griff wäre gewesen, es auf 51 % Helligkeit zu ziehen. Das wäre falsch: `--primary` steht an 38 Stellen, an dreien davon als *Textfarbe* auf dunklem Grund. Dort gilt die Rechnung andersherum — auf `#0a0a0c` ergibt 60 % ein Verhältnis von 5,75:1, 51 % nur noch 4,37:1. Nur der Knopfgrund bekam eine eigene Variante `--primary-weisser-text`.
+
+**Der Weg zurück zum System braucht kein drittes Bedienelement.** Vorher war bindend, wer den Umschalter einmal benutzt hatte: `localStorage.theme` stand für immer, das System wurde nie wieder gefragt. Jetzt löscht eine Handwahl, die dem System entspricht, die Festlegung.
+
+**Bewegung wird abgeschaltet, nicht verlangsamt** — aber mit 0,01 ms statt 0, damit `transitionend` weiterhin ausgelöst wird. Code, der darauf wartet, bliebe sonst hängen.
+
+**Das Homescreen-Symbol ist eingecheckt, nicht zur Laufzeit erzeugt.** Safari nimmt dafür kein SVG; ohne PNG legt iOS beim Hinzufügen einen Bildschirmausschnitt ab. Pillow steht bewusst nicht in den Abhängigkeiten — eine Bildbibliothek nur für ein Symbol wäre unverhältnismäßig und liefe im Container dauerhaft mit. Das PNG entsteht in `tools/erzeuge_touch_icon.py` mit `zlib` und `struct`, 1052 Bytes.
+
+**Zwei Befunde des ersten Durchgangs waren falsch** und werden hier richtiggestellt, weil sie so im Bericht standen:
+- „Vier von fünf Bildern ohne `alt`" — es sind Leaflet-Kartenkacheln mit `alt=""`. Leeres `alt` ist bei schmückenden Bildern richtig, Screenreader überspringen sie dann. Geprüft worden war auf leeren String statt auf fehlendes Attribut.
+- „Kein `prefers-color-scheme`" — beim Laden folgte das Theme bereits dem System, `matchMedia` steht seit jeher in `app.js`. Gesucht worden war nur im CSS. Der echte Mangel lag bei der dauerhaften Festlegung, siehe oben.
+
+**Warum `is_default_branch` den `latest`-Wettlauf nicht verhinderte:** Die Bedingung sieht aus, als wären Tags ausgeschlossen. Sind sie nicht — bei einem Tag-Event ist sie ebenfalls wahr, weil der Tag auf einem Commit des Default-Branch sitzt. Mit nur einem Tag je Release fällt das nie auf. Erst zwei Tags in einem `git push --follow-tags` machen daraus einen Wettlauf, der nach Build-Dauer ausgeht. Jetzt entscheidet `github.ref_type == 'branch'`: genau ein Schreiber.
+
+### Geprüft
+1084 Tests. An der laufenden Instanz gegengeprüft, Desktop und 375 px: neun Bedienelemente auf 44 × 44 ohne Überlappung und ohne Querscrollen, null Kontrastverstöße in beiden Themes (vorher je vier), und mit Farbschema-Emulation zieht die Seite ohne eigene Festlegung in beide Richtungen mit, mit Festlegung nicht.
 
 ## [1.41.0] - 2026-10-07
 ### Added
