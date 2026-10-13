@@ -10,6 +10,23 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/), mit
 > Die Historie beginnt mit v1.8.0. Ältere Einträge betreffen überwiegend interne
 > Umbauten ohne Auswirkung auf den Betrieb der Bridge.
 
+## [2.1.1] - 2026-10-13
+### Changed
+- **Das leere „Bis"-Feld im Ladeverlauf zeigt „jetzt" statt `tt.mm.jjjj, --:--`.** Die Notation ist die Anzeige des Browsers für ein leeres Datumsfeld. Gemeint ist „kein Ende", und das heißt im Filter tatsächlich „bis jetzt": Ein leeres `bis` schließt nichts aus, und später als jetzt gibt es keine Ladungen. Mit einem Datum verschwindet „jetzt", mit Fokus erscheinen die Segmente wieder, damit man tippen kann.
+
+### Note
+**Ein Overlay, weil es kein Attribut dafür gibt.** Der Platzhalter eines `datetime-local`-Feldes gehört dem Browser. Die native Anzeige wird im Leerzustand ausgeblendet und „jetzt" darübergelegt. Das Overlay ist nur Anzeige: `aria-hidden`, keine Berührungen, und ein `title` am Feld nennt die Bedeutung.
+
+**Das Verfahren hängt an `::-webkit-datetime-edit`.** In Firefox gibt es das nicht; dort bliebe die native Anzeige stehen, und das Overlay läge als zweiter Text darüber. Es ist deshalb standardmäßig aus und wird nur innerhalb von `@supports selector(::-webkit-datetime-edit)` eingeschaltet. Schlimmstenfalls bleibt die Anzeige wie bisher.
+
+**Programmatisches Setzen löst kein `input`-Ereignis aus.** `zeichneFilterleiste()` und „Zurücksetzen" schreiben `.value` direkt. Wer nur auf Ereignisse hört, zeigt danach ein falsches „jetzt". Der Zustand wird deshalb an jeder Stelle nachgezogen, die das Feld setzt; ein Test hält fest, dass es keine zweite, unbemerkte Setzstelle gibt (dieselbe Art Fehler wie bei #34).
+
+**Polster und Schrift stehen jetzt in Variablen** (`--feld-polster-x`, `--feld-schrift`). Die allgemeine `datetime-local`-Regel setzt beides mit `!important`; das Overlay nutzt dieselben Werte, sonst verschöbe es sich beim nächsten Umbau gegenüber dem Feld, das es ersetzt. Die Werte selbst sind unverändert (14 px, 0,9 rem).
+
+**Geprüft, und was nicht.** Gegen die echten Dateien in Chromium: Leerzustand, mit Datum, nach „Zurücksetzen", nach Neuladen mit gespeichertem Filter, mit Fokus per Klick; helles und dunkles Theme; 375 px ohne Querscrollen. **Nicht geprüft:** Safari (Desktop und iOS), Firefox und die Ansage mit VoiceOver. Nach der Spezifikation bleibt der Name des Feldes „Bis" und der `title` wird zur Beschreibung; das Prüfwerkzeug löst Beschriftungen um ein Feld herum nicht auf und konnte das nicht bestätigen.
+
+**Zwei Befunde am Rand, nicht Teil dieser Änderung.** Bei 375 px ist das „Von"-Feld zu schmal für seinen Inhalt: `13.09.2026, 1▢`, die Uhrzeit wird vom Kalendersymbol abgeschnitten. Das bestand schon vorher, Polster und Schrift sind unverändert. Außerdem sind die Felder 40 px hoch; die 44-pt-Messung aus v2.0.0 hat nur den damals sichtbaren Tab erfasst, Ladeverlauf, Standortverlauf, Einstellungen und Dialoge fehlen dort.
+
 ## [2.1.0] - 2026-10-13
 ### Added
 - **`CHARGING_OPEN_FOLLOWUP_DAYS` — wie lange ein offener Ladevorgang nachverfolgt wird.** Standard 7 Tage, `0` schaltet die Nachverfolgung ab, höchstens 45 (dort endet BMWs Rückgabe). Unlesbare oder negative Werte fallen auf den Standard zurück. Erscheint in der Konfigurationsseite unter „Ladeverlauf" und in `example.env`.
