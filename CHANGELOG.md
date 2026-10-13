@@ -10,6 +10,28 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/), mit
 > Die Historie beginnt mit v1.8.0. Ältere Einträge betreffen überwiegend interne
 > Umbauten ohne Auswirkung auf den Betrieb der Bridge.
 
+## [2.0.1] - 2026-10-13
+### Fixed
+- **`latest` wurde weiterhin von jedem Tag-Build geschrieben.** Die Korrektur in v2.0.0 griff zwar, traf aber nicht die Ursache. `flavor: latest=auto` ist die Voreinstellung von `docker/metadata-action`: Bei einem Semver-Tag-Event wird `latest` automatisch gesetzt — unabhängig von jeder `type=raw`-Regel. Jetzt steht `flavor: latest=false` daneben; erst beide Zeilen zusammen ergeben einen Schreiber.
+
+### Note
+**Die Behauptung in v2.0.0 war falsch.** Dort stand „Jetzt entscheidet `github.ref_type == 'branch'`: genau ein Schreiber." Am v2.0.0-Tag-Build selbst nachgemessen (Lauf 38397096801):
+
+```
+type=raw,value=latest,enable=false     <- unsere Regel griff
+##[group]Processing flavor input
+latest=auto                            <- und hier kam es doch
+##[group]Docker tags
+ghcr.io/bausi2k/bmw-mqtt-bridge:2.0.0
+ghcr.io/bausi2k/bmw-mqtt-bridge:latest
+```
+
+In der Registry sprang `latest` von `ad47280` (der main-Build) auf `c232906` (der Tag-Build). Praktische Folge für v2.0.0: keine — der Tag-Build trug denselben Quellstand. Der Wettlauf bei zwei gleichzeitig gepushten Tags wäre aber zurückgekommen.
+
+**Sechs grüne Tests bei kaputtem Verhalten.** Die Tests zu v2.0.0 prüften die `type=raw`-Zeile, also genau den Mechanismus, der nie die Ursache war. Aufgefallen ist es nur, weil nach dem Tag die Registry-Digests verglichen wurden. Für diese Art Fehler gilt: Grüne Tests belegen hier nichts, die Gegenprobe gehört an den echten Lauf.
+
+**Kommentare werden jetzt zentral gestrippt.** Dreimal in Folge hat ein Kommentar in diesem Workflow einen Test verfälscht — erst bestand einer an seinem eigenen Kommentar (v1.28.1), dann liess ein Kommentar einen fallen (v2.0.0), dann zählte ein Beispiel im Kommentar als zweite Regel. Die Testbasisklasse bietet dafür jetzt `nackt`.
+
 ## [2.0.0] - 2026-10-13 — Die Oberfläche nach den Apple Human Interface Guidelines
 
 **Kein Bruch.** Keine Konfigurationsänderung, keine neuen Pflichtfelder in der `.env`, keine geänderten MQTT-Topics, keine Datenbankmigration. Wer von v1.41.0 kommt, deployt und merkt beim Betrieb nichts außer einer Oberfläche, die sich an die Systemeinstellungen hält. Die erste Stelle steigt als Meilenstein, nicht als Warnung.
