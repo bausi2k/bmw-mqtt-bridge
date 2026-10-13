@@ -10,6 +10,30 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/), mit
 > Die Historie beginnt mit v1.8.0. Ältere Einträge betreffen überwiegend interne
 > Umbauten ohne Auswirkung auf den Betrieb der Bridge.
 
+## [2.1.0] - 2026-10-13
+### Added
+- **`CHARGING_OPEN_FOLLOWUP_DAYS` — wie lange ein offener Ladevorgang nachverfolgt wird.** Standard 7 Tage, `0` schaltet die Nachverfolgung ab, höchstens 45 (dort endet BMWs Rückgabe). Unlesbare oder negative Werte fallen auf den Standard zurück. Erscheint in der Konfigurationsseite unter „Ladeverlauf" und in `example.env`.
+
+### Changed
+- **Offene Ladevorgänge halten das Abruffenster nicht mehr bis an BMWs Grenze auf (#37).** Bisher reichte die Nachverfolgung aus #22 bis 45 Tage zurück. Am Produktivarchiv am 13.10.2026: vier offene Vorgänge mit Ladeblöcken, der älteste 36 Tage alt, damit war das Fenster täglich 36 statt 3 Tage breit. Der kalte Abruf kostete 8 Seiten (11 976 ms) aus dem Tagesbudget von 50.
+
+  | Frist | Fenster | Seiten (errechnet) |
+  |---|---|---|
+  | vorher (45 Tage) | 36,0 Tage | 7 |
+  | **7 Tage** | **6,1 Tage** | **2** |
+  | 0 (aus) | 3,9 Tage | 1 |
+
+### Note
+**Zwei Zahlen im Issue waren falsch.** #37 sprach von acht offenen Vorgängen, der älteste vom 24.08. Das stammte aus einem gröberen Filter; `oldest_open_charging_start` schließt Vorgänge ohne Ladeblöcke bereits aus. Tatsächlich sind es vier, der älteste vom 07.09. Die Ursache bleibt dieselbe, nur der Umfang ist kleiner.
+
+**Was die Frist riskiert, und was nicht belegt ist.** Bei keinem der vier offenen Vorgänge hat BMW je einen Energiewert nachgetragen, auch nicht nach fünf Wochen. Das beweist nichts: Ob ein Vorgang früher einmal offen war und später vervollständigt wurde, ist im Archiv nicht zu sehen. Es verschiebt aber die Abwägung, und der Fall aus #22 (sechs Stunden Ladung, drei Wochen eingefroren) spricht dagegen, die Nachverfolgung ganz zu streichen. Deshalb eine Einstellung statt einer festen Zahl; wer die alte Weite will, setzt `45`.
+
+**Die Seitenzahl ist errechnet, nicht gemessen.** Das Modell (zehn Vorgänge je Seite) liefert für den 07.10. sieben Seiten, gemessen waren acht — es zählt tendenziell eine zu wenig. Für die neue Frist ist daher mit zwei bis drei zu rechnen. Die Antwort von `/api/charging-history` führt im Feld `pages`, wie viele Seiten ein Aufruf tatsächlich bei BMW geholt hat; ein einmaliges „Aktualisieren" nach dem Deploy zeigt es.
+
+**Das Fenster ist nicht überall kürzer geworden.** In `web_server.py` klammerte dieselbe Untergrenze nicht nur die Suche nach offenen Vorgängen, sondern das ganze Abruffenster. Beide Rollen sind jetzt getrennt: Die Frist begrenzt nur die Suche, BMWs 45-Tage-Grenze klammert weiter das Fenster. Der Abruf läuft nur auf Knopfdruck — wer den Ladeverlauf drei Wochen nicht öffnet, hat einen neuesten Vorgang von vor drei Wochen im Archiv, und das Fenster muss von dort aus zurückreichen. Sonst fehlten die Ladungen dazwischen, ohne Fehlermeldung. Ein eigener Test hält das fest.
+
+**Zwei bestehende Tests wurden angepasst.** Sie legten einen 20 Tage alten offenen Vorgang an, den die Frist jetzt bewusst nicht mehr verfolgt. Geändert wurde der Abstand (fünf Tage), nicht die Aussage.
+
 ## [2.0.1] - 2026-10-13
 ### Fixed
 - **`latest` wurde weiterhin von jedem Tag-Build geschrieben.** Die Korrektur in v2.0.0 griff zwar, traf aber nicht die Ursache. `flavor: latest=auto` ist die Voreinstellung von `docker/metadata-action`: Bei einem Semver-Tag-Event wird `latest` automatisch gesetzt — unabhängig von jeder `type=raw`-Regel. Jetzt steht `flavor: latest=false` daneben; erst beide Zeilen zusammen ergeben einen Schreiber.
