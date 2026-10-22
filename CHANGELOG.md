@@ -10,6 +10,32 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/), mit
 > Die Historie beginnt mit v1.8.0. Ältere Einträge betreffen überwiegend interne
 > Umbauten ohne Auswirkung auf den Betrieb der Bridge.
 
+## [2.1.2] - 2026-10-22
+### Security
+- **certifi auf 2026.10.19 angehoben** (zuvor 2026.7.22), Dependabot-Alert #9, Schweregrad kritisch ([GHSA-6q48-6c7w-9gw2](https://github.com/advisories/GHSA-6q48-6c7w-9gw2)). Versionen vor 2026.10.18 enthalten das Wurzelzertifikat `emSign ECC Root CA - G3`; acht Zwischenzertifikate darunter haben kompromittierte Schlüssel. Wer einen davon besitzt, kann gültig aussehende Zertifikate für beliebige Hostnamen ausstellen und, falls er zusätzlich im Netzweg sitzt, TLS-Verkehr mitlesen oder verändern. certifi ist die Vertrauensbasis von `requests` und damit jedes Aufrufs der BMW-REST-Schnittstelle.
+
+### Changed
+- **`fastapi` auf 0.143.2 angehoben** (zuvor 0.142.2), aus Dependabot-PR #38.
+
+### Note
+**Das Abbild muss neu gebaut und eingespielt werden.** Die Pins werden beim Bauen installiert; ein laufender Container behält sein altes certifi, bis er mit dem neuen Abbild neu gestartet wird.
+
+**Die Verbindung zu BMW wurde vor und nach dem Update geprüft.** certifi 2026.10.18 hatte alle emSign-Wurzeln entfernt, 2026.10.19 die nicht betroffenen wieder eingesetzt. Hätte BMW über emSign ausgestellt, wäre die Verbindung gebrochen. Ein TLS-Handshake ohne Anmeldung gegen alle drei Hosts des Projekts, vorher und nachher mit identischem Ergebnis:
+
+| Host | Aussteller | vorher | nachher |
+|---|---|---|---|
+| `api-cardata.bmwgroup.com:443` | GlobalSign RSA OV SSL CA 2018 | ok | ok |
+| `customer.bmwgroup.com:443` | GlobalSign RSA OV SSL CA 2018 | ok | ok |
+| `customer.streaming-cardata.bmwgroup.com:9000` | GlobalSign GCC R46 OV TLS CA 2025 | ok | ok |
+
+Im neuen Bundle fehlt `emSign ECC Root CA - G3` tatsächlich; `emSign Root CA - G1`, `C1` und `ECC Root CA - C3` sind wieder enthalten.
+
+**Ob die Schwachstelle ausgenutzt wurde, lässt sich aus dem Projekt nicht feststellen.** Ein Angriff bräuchte einen der kompromittierten Schlüssel *und* eine Position im Netzweg zwischen NAS und BMW. Das Protokoll wurde dafür nicht ausgewertet.
+
+**FastAPI zweistufig geprüft, bevor gemergt.** Die Testsuite lief in einer wegwerfbaren Umgebung mit genau diesen Versionen (fastapi 0.143.2, starlette 1.9.0, pydantic 2.14.1, uvicorn 0.54.0) — 1126 Tests grün. Dazu ein echter uvicorn-Lauf mit temporärer Datenbank, weil die Tests Endpunkte direkt aufrufen und einen Bruch von FastAPI oder uvicorn nicht bemerken würden: Status, Konfigurationsschema, Telemetrie, `index.html`, `app.js` und das Touch-Icon lieferten 200, die Validierung (`days=abc`) 422, der Serverlog blieb leer. Die Release-Notizen wurden gelesen: 0.143.0 markiert als einzigen Punkt „Breaking", dass der automatische OpenTelemetry-Exporter jetzt opt-in ist; das Projekt nutzt weder OpenTelemetry noch eine `OTEL_*`-Variable. Nicht geprüft: `POST /api/config` (würde die echte `.env` schreiben) sowie die Pfade zu BMW und MQTT über den Handshake hinaus.
+
+**Ein Merge nach `main` baut `latest` neu.** Der PR #38 wurde vor dieser Versionsnummer gemergt; zwischen Merge und Tag trägt `latest` die neue FastAPI-Version unter der Nummer 2.1.1 und noch das alte certifi.
+
 ## [2.1.1] - 2026-10-13
 ### Changed
 - **Das leere „Bis"-Feld im Ladeverlauf zeigt „jetzt" statt `tt.mm.jjjj, --:--`.** Die Notation ist die Anzeige des Browsers für ein leeres Datumsfeld. Gemeint ist „kein Ende", und das heißt im Filter tatsächlich „bis jetzt": Ein leeres `bis` schließt nichts aus, und später als jetzt gibt es keine Ladungen. Mit einem Datum verschwindet „jetzt", mit Fokus erscheinen die Segmente wieder, damit man tippen kann.
