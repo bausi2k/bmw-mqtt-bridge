@@ -10,6 +10,50 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/), mit
 > Die Historie beginnt mit v1.8.0. Ältere Einträge betreffen überwiegend interne
 > Umbauten ohne Auswirkung auf den Betrieb der Bridge.
 
+## [2.3.0] - 2026-10-28 — Akzentfarbe wählbar
+### Added
+- **Fünf Akzentfarben in den Einstellungen.** Neue Karte „Darstellung" im Tab „Einstellungen & Logs": BMW-Blau, Violett, Magenta (Standard), Rot und Orange. Die Wahl wirkt sofort, wird serverseitig in `data/ui_config.json` gespeichert und gilt damit auf allen Geräten.
+- **`GET /api/accent-colors`** liefert die Liste. Sie steht an einer einzigen Stelle (`lib/accent_colors.py`); die Oberfläche holt sie von dort. Kostet keinen BMW-Abruf.
+
+### Note
+**Warum fünf Voreinstellungen und kein Farbwähler.** Der Kontrast hängt vom Farbton ab. Die Helligkeiten des Design-Exports sind auf Magenta abgestimmt, und von 360 Farbtönen halten nur **188** die Lesbarkeitsgrenzen der benutzten Töne ein (0–28 und 201–359). Orange bis Cyan fallen durch:
+
+| Farbton | Knopf (weiß) | Text, hell | |
+|---|---|---|---|
+| Gelb 60 | 3,43:1 | 3,02:1 | zu blass |
+| Grün 120 | 4,16:1 | 3,68:1 | zu blass |
+| Cyan 180 | 3,88:1 | 3,43:1 | zu blass |
+
+Ein freier Farbwähler hätte die Lesbarkeit aus v2.0.0 und v2.2.0 genau bei den beliebtesten Farben wieder aufgegeben. Jede Voreinstellung wird einzeln in beiden Themes nachgerechnet; der schwächste Wert über die benutzten Töne:
+
+| Farbe | Farbton / Sättigung | Knopf | schwächster Kontrast |
+|---|---|---|---|
+| BMW-Blau | 215 / 77 % | `#1552A2` | 6,27:1 |
+| Violett | 262 / 56 % | `#4E288F` | 5,27:1 |
+| Magenta (Standard) | 304 / 56 % | `#8F2888` | 5,91:1 |
+| Rot | 355 / 56 % | `#8F2831` | 6,07:1 |
+| Orange | 22 / 56 % | `#8F4E28` | 5,02:1 |
+
+**BMW-Blau ist verwandt, nicht gleich.** Die Marke ist `#1C69D4` (215 / 77 % / 47 %); die Voreinstellung übernimmt Farbton und Sättigung. Der Knopf liegt durch den Export bei 36 % Helligkeit und wird damit das tiefere `#1552A2`. **Orange ist als Knopf ein Rostbraun**, kein leuchtendes Orange: Ab Farbton 30 reicht der Kontrast nicht mehr.
+
+**Gespeichert wird die Kennung (`orange`), nie die Zahl.** Eine gespeicherte Wahl bleibt damit gültig, auch wenn sich ein Farbwert ändert, und ein manipulierter Wert kann keine Farbe einschleusen. `/api/ui-config` nahm bis hierher jedes beliebige Objekt; für den Schlüssel `appearance.accent` gibt es jetzt die erste Prüfung an dieser Grenze. Unbekanntes oder Falschtypisiertes wird verworfen, die Oberfläche fällt auf Magenta zurück. Der Rest der Konfiguration bleibt unberührt.
+
+**Die Farbwahl speichert nie mit leerer Konfiguration.** `/api/ui-config` ersetzt beim Speichern die **ganze** Datei. Ist die Konfiguration nicht geladen, steht `uiConfig` leer da; `{appearance: …}` allein hätte alle Kachel-Zuordnungen gelöscht. Die Wahl versucht deshalb zuerst zu laden und tut sonst nichts. `saveUIConfig` meldet jetzt Erfolg oder Misserfolg (ein 500er sah vorher aus wie Erfolg), `fetchUiConfig` hält eine Fehlerantwort nicht mehr für die Konfiguration, und bei einem gescheiterten Speichern wird die Wahl zurückgenommen, mit sichtbarer Meldung.
+
+**Kein Aufblitzen der Standardfarbe.** Ein lokaler Spiegel (`localStorage.accent`) wird wie beim Hell/Dunkel-Umschalter sofort angewendet. Der Server bleibt die Wahrheit: Ändert ein anderes Gerät die Farbe, zieht dieses hier nach dem Laden nach.
+
+**Bedienbar ohne Farbe.** Die Auswahl besteht aus echten Radiofeldern in einem `fieldset` mit Legende, damit sind Tastatur und Screenreader abgedeckt. Name und Haken zeigen die Wahl, nicht nur die Farbfläche; jedes Feld ist mindestens 44 px hoch.
+
+**Zwei Dinge, die beim Bauen auffielen.**
+- Der Design-Export enthält `--accent-color-hover` und `--accent-color-active`, die **nirgends benutzt** werden. Für Violett und Rot sind sie im dunklen Theme nicht lesbar (Aktiv-Ton 3,25:1 und 4,15:1, Hover-Ton bei Violett 3,88:1). Mein erster Test prüfte sie und meldete rot, obwohl sie nie gezeichnet werden. Er prüft jetzt nur das Benutzte, und ein Wächtertest schlägt an, falls jemand sie später verwendet, statt dass ein Hover-Text bei Violett still unlesbar wird.
+- Die Zahl 188 stimmt auch ohne die ungenutzten Töne, neu gerechnet mit denselben Grenzen.
+
+**Geprüft.** Gegen einen Vorschau-Server mit der Liste aus dem echten Modul, Speichern im Speicher und einem Schalter, der das Speichern scheitern lässt: Jede der fünf Farben in beiden Themes über alle sechs Tabs gemessen, hell 0 Textverstöße, dunkel nur die bekannten Leaflet-Zoomsymbole (Messartefakt), alle Rahmen mindestens 3,06:1. Funktion: Anwenden, Spiegel, Server, Kachel-Einstellungen erhalten (alle 5 vorhandenen Schlüssel plus `appearance`), Fehlerfall mit Rücknahme und Meldung, Änderung von einem anderen Gerät, Neuladen. Mobil bei 375 px ohne Querscrollen, alle Felder 44 px hoch. Messfalle: Übergänge laufen im Hintergrund nur mit erzeugten Bildern; den Zielwert liest man mit abgeschalteten Übergängen.
+
+**Nicht geprüft:** Safari und Firefox, die echte NAS (läuft erst nach dem Deploy), der Fokusring per Tastatur (er steht im CSS und ist per Test gesichert, wurde aber nicht durchgespielt) und die Ansage mit VoiceOver.
+
+**Bekannte Schwäche, nicht neu.** `/api/ui-config` ersetzt die ganze Datei. Ein lange offenes Fenster mit altem Stand kann beim nächsten Speichern die Farbwahl zurücksetzen, so wie es heute schon die Kachel-Einstellungen betrifft.
+
 ## [2.2.0] - 2026-10-28 — Design-Export v1.3.1
 ### Changed
 - **Akzentfarbe Magenta/Violett statt BMW-Blau.** Farbton 304, Sättigung 56 % statt 215 / 100 %, aus dem Design-Export v1.3.1. Das BMW-Rondell im Kopf bleibt blau, es ist Marke. Fünf fest eingetragene Blautöne (Leuchteffekte, Hintergründe) folgten dem Akzent nicht und stehen jetzt auf dem Akzent-Token.
