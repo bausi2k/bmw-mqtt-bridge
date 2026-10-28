@@ -10,6 +10,42 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/), mit
 > Die Historie beginnt mit v1.8.0. Ältere Einträge betreffen überwiegend interne
 > Umbauten ohne Auswirkung auf den Betrieb der Bridge.
 
+## [2.2.0] - 2026-10-28 — Design-Export v1.3.1
+### Changed
+- **Akzentfarbe Magenta/Violett statt BMW-Blau.** Farbton 304, Sättigung 56 % statt 215 / 100 %, aus dem Design-Export v1.3.1. Das BMW-Rondell im Kopf bleibt blau, es ist Marke. Fünf fest eingetragene Blautöne (Leuchteffekte, Hintergründe) folgten dem Akzent nicht und stehen jetzt auf dem Akzent-Token.
+- **Statusfarben je Theme statt konstant** (`--success-color`, `--warning-color`, `--danger-color`). Die Warnfarbe hatte auf hellem Grund 1,71:1, die Erfolgsfarbe 2,60:1; beide Themes liegen jetzt bei mindestens 5,9:1.
+- **Eingabefelder, Auswahllisten und Datumsfelder haben sichtbare Rahmen** (`--control-border`, rund 3:1 statt 1,2–1,3:1). Das fällt in allen Filtern und Dialogen auf.
+- **Der Verlauf im primären Knopf entfällt.** `--accent-gradient` ist im Export eine flache Farbe; der Knopf bekommt beim Überfahren einen eigenen Ton (`--accent-btn-hover`, aus dem `--accent-btn-l2` des Exports abgeleitet).
+
+### Fixed
+- **Der Akzent als Text war im hellen Theme zu blass.** Gemessen über alle sechs Tabs, beide Themes, 154 Felder:
+
+| | vorher | nachher |
+|---|---|---|
+| Textverstöße, hell | 111 (fast alle 3,69:1) | **0** |
+| Textverstöße, dunkel | 2 | 2 (Messartefakt, siehe unten) |
+| schwächster Feldrahmen, dunkel | 1,26:1 | **3,09:1** |
+| schwächster Feldrahmen, hell | 1,20:1 | **3,06:1** |
+
+### Note
+**Was v2.0.0 übersehen hatte.** Dort wurden `.label` und der Knopf geprüft, und zwar nur auf dem damals sichtbaren Tab. Der Akzent als Text im hellen Theme (Tab-Beschriftungen, Sortierspalte, DC-Badge, Log-Stufe INFO, Detail-Dialog), die Statusfarben und die Feldrahmen blieben unbemerkt. 92 der 111 Verstöße lagen im Tab „Einstellungen & Logs", vor allem durch die Log-Stufe INFO.
+
+**Die erste Umsetzung hatte ein Loch, die Sichtprüfung hat es gefunden.** Nach der Umbenennung lag der schwächste Feldrahmen im dunklen Theme noch bei 1,33:1. 26 Felder tragen ihren Rahmen **inline im HTML** (`style="… border: 1px solid var(--border-color)"`): die drei Dialoge und die Datumsfelder des Standortverlaufs. Dazu kam die Suchleiste im Tab „Detaildaten" mit `--border-color` im CSS. Ein Test, der nur die CSS-Datei liest, hätte das nie gesehen; ein neuer Wächtertest prüft HTML und CSS.
+
+**Eine Abweichung vom Export, bewusst.** `--control-border` dunkel hat im Export Alpha 0,35 und ergibt 2,99:1; der Kommentar des Exports verspricht 3:1. Hier gilt 0,36. Die Zeile trägt den Grund, und ein Test schlägt an, falls ein neuer Export den Wert überschreibt.
+
+**Alte Tokens sind weg, nicht umgeleitet.** `--primary`, `--primary-weisser-text`, `--input-border` und `--success`/`--warning`/`--danger` wurden in CSS, JS (inline gesetzte Farben) und HTML umbenannt. Eine halbe Umbenennung gibt keine Fehlermeldung, nur eine fehlende Farbe, deshalb prüft ein Test alle drei Dateien. Ungenutzte Export-Tokens (`--accent-gradient-text` u. a.) bleiben absichtlich stehen, damit ein neuer Export als Ganzes eingesetzt werden kann.
+
+**Der Akzent hat zwei Gesichter.** Als Text und Rahmen (`--accent-color`: 65 % dunkel, 38 % hell) und als Knopfgrund unter weißem Text (`--accent-btn-color`: 36 %, weiß darauf 7,43:1). Der gedrückte Schalter „0 kWh ausblenden" trägt weißen Text und stand auf dem Textton; im dunklen Theme wäre das kaum lesbar gewesen. Ein Test hält fest, dass weißer Text nie auf `--accent-color` steht.
+
+**Zwei bestehende Tests wurden angepasst.** `test_hig_kontrast.py` liest keine feste Prozentzahl mehr, sondern löst verschachtelte `var()` je Theme auf, wie der Browser es tut; die Begründung zu `--primary` aus v2.0.0 ist damit hinfällig. `test_detail_tiles_ui.py` nahm das **erste** `[data-theme="light"]`; seit dem Export gibt es zwei. Einer der beiden betroffenen Tests war rot, der andere lief danach **leer durch**, weil der Export keine Tönungen enthält. Das war der gefährlichere Fall.
+
+**Gemessen wurde mit zwei Vorschau-Servern**, einmal mit den neuen Dateien, einmal mit dem alten Stand von `main`, beide mit denselben Daten: ausgewählte Lese-Endpunkte der laufenden Instanz, feste Beispieldaten für den Ladeverlauf, alles, was BMW kosten oder die `.env` zeigen könnte, gesperrt. Die Leaflet-Zoomknöpfe meldet die Messung in beiden Ständen mit 1,36:1; das ist ein Messartefakt (der Messer fand den hellgrauen Kartenhintergrund hinter den Kacheln), im Bild sind sie gut lesbar.
+
+**Nicht geprüft:** Safari und Firefox, der Hochkontrastmodus, der Tab „SmartMaintenance" und der Standortverlauf mit echten Daten sowie die Dialoge im hellen Theme (nur gemessen, nicht angesehen).
+
+**Randbefunde, nicht Teil dieser Änderung.** Der Tab „SmartMaintenance" scrollt bei 375 px quer (454 px); der alte Stand tut es unter denselben Bedingungen ebenfalls, in der Vorschau mit leeren Daten gemessen. Das „Von"-Feld im Ladeverlauf ist bei 375 px zu schmal für seine Uhrzeit.
+
 ## [2.1.2] - 2026-10-22
 ### Security
 - **certifi auf 2026.10.19 angehoben** (zuvor 2026.7.22), Dependabot-Alert #9, Schweregrad kritisch ([GHSA-6q48-6c7w-9gw2](https://github.com/advisories/GHSA-6q48-6c7w-9gw2)). Versionen vor 2026.10.18 enthalten das Wurzelzertifikat `emSign ECC Root CA - G3`; acht Zwischenzertifikate darunter haben kompromittierte Schlüssel. Wer einen davon besitzt, kann gültig aussehende Zertifikate für beliebige Hostnamen ausstellen und, falls er zusätzlich im Netzweg sitzt, TLS-Verkehr mitlesen oder verändern. certifi ist die Vertrauensbasis von `requests` und damit jedes Aufrufs der BMW-REST-Schnittstelle.
