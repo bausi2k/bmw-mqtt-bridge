@@ -10,6 +10,22 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/), mit
 > Die Historie beginnt mit v1.8.0. Ältere Einträge betreffen überwiegend interne
 > Umbauten ohne Auswirkung auf den Betrieb der Bridge.
 
+## [2.3.1] - 2026-11-09
+### Fixed
+- **Die Sonderausstattung fehlte in den „Fahrzeugdaten".** BMW hat das Feld `fullSAList` in `saList` umbenannt; der Code las nur den alten Namen, die Zeile „Sonderausstattung" entfiel ohne jede Meldung. Jetzt gelten beide Namen, der alte zuerst, das erste Feld mit Inhalt gewinnt. Die Zeile steht wieder unter Übersicht → „Fahrzeugdaten" → Ausstattung, mit den 65 Codes.
+
+### Added
+- **Hinweis im Protokoll, wenn BMW keines der beiden Felder mehr liefert.** Einmal je Ausfall, mit den *Namen* der gelieferten Felder (keine Werte), damit man sieht, unter welchem Namen die Liste jetzt kommt. Kehrt das Feld zurück und fällt später wieder weg, meldet es sich neu. Ein vorhandenes, aber leeres Feld ist keine Störung: Ein Fahrzeug ohne Sonderausstattung liefert die Liste leer.
+
+### Note
+**Belegt, nicht vermutet.** Der Testdatensatz vom 12.08.2026 enthält noch `fullSAList`; die Antwort vom 09.11.2026 hat `saList`. Beide Listen beginnen mit denselben Codes (`0230,0248,02PA,02VB,02VC`), und BMW liefert weiterhin 22 Felder: eine Umbenennung, kein Wegfall. Wann genau BMW umgestellt hat, lässt sich nicht sehen; die Antwort liegt 24 Stunden im Zwischenspeicher.
+
+**BMW hat zwei Felder umbenannt, nur eines fiel auf.** Das zweite ist `colourCodeRaw` → `colourCodeRAW`. Es blieb unbemerkt, weil die Farbe aus `colourDescription` kommt und der Code nur Rückfall ist. Das wurde hier nicht angefasst, weil es keine sichtbare Folge hat; fiele `colourDescription` einmal weg, griffe der Rückfall allerdings ebenfalls nicht.
+
+**Warum das lautlos blieb, und was jetzt dagegen steht.** Ein fehlendes Feld erzeugt im Steckbrief keine Zeile, statt einen Strich zu zeigen — das ist gewollt, hat hier aber den Ausfall versteckt. Neu prüft ein Test die **echte** Antwort mit allen 22 Feldern und zählt, welche Zeilen herauskommen. Fehlt eine, weil BMW wieder etwas umbenennt, fällt es dort auf statt erst, wenn jemand die Oberfläche ansieht.
+
+**Geprüft.** Mit einer Vorschau, die den Steckbrief einmal mit dem alten und einmal mit dem neuen Modul aus denselben echten Rohfeldern baut: vorher vier Zeilen in „Ausstattung", nachher fünf mit „Sonderausstattung — 65 Codes". Mobil bei 375 px brechen die Codes über etwa zehn Zeilen um, ohne Querscrollen. **Nicht geprüft:** Safari und die echte NAS (erst nach dem Deploy).
+
 ## [2.3.0] - 2026-10-28 — Akzentfarbe wählbar
 ### Added
 - **Fünf Akzentfarben in den Einstellungen.** Neue Karte „Darstellung" im Tab „Einstellungen & Logs": BMW-Blau, Violett, Magenta (Standard), Rot und Orange. Die Wahl wirkt sofort, wird serverseitig in `data/ui_config.json` gespeichert und gilt damit auf allen Geräten.
